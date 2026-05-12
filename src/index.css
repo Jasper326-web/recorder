@@ -1,0 +1,41 @@
+:root {
+  --page: #f7f9f8;
+  --surface-soft: #f2f7f5;
+  --ink: #18262c;
+  --soft-ink: #4d6068;
+  --muted: #73838a;
+  --line: rgba(24, 38, 44, 0.12);
+  --teal: #2f9a8f;
+  --coral: #e46d58;
+  --lavender: #8867ca;
+  --blue: #3f79b7;
+  --shadow: 0 12px 38px rgba(24, 38, 44, 0.07);
+  --shadow-strong: 0 18px 50px rgba(24, 38, 44, 0.16);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--ink);
+  background: var(--page);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--page);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100svh;
+}
+
+a {
+  color: inherit;
+}

@@ -1,0 +1,16 @@
+{
+  "name": "频繁记录",
+  "short_name": "频繁记录",
+  "description": "通过大量频繁记录自己，训练情绪控制力、生活觉知力、口才表达能力和头脑清晰度。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f9f8",
+  "theme_color": "#2f9a8f",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
