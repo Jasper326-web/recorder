@@ -9,11 +9,14 @@ import {
   filterEntries,
   importEntries,
   loadEntries,
+  mergeEntries,
   saveEntries,
   toDateKey,
   trainingTracks,
 } from './domain'
 import type { Entry, EntryType, PromptAnswers, TrainingTrackName } from './domain'
+import { fetchCloudEntries, upsertCloudEntries } from './cloudSync'
+import { hasSupabaseConfig, supabase } from './supabaseClient'
 import { clearVideoBlobs, getVideoBlob, saveVideoBlob } from './videoStore'
 
 type Tab = 'record' | 'calendar' | 'list' | 'companion' | 'settings'
@@ -618,6 +621,31 @@ function SettingsView({
   onClear: () => void
 }) {
   const [message, setMessage] = useState('')
+  const [cloudMessage, setCloudMessage] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [userEmail, setUserEmail] = useState('')
+  const [userId, setUserId] = useState('')
+  const [isSyncing, setIsSyncing] = useState(false)
+
+  useEffect(() => {
+    if (!supabase) return
+
+    supabase.auth.getSession().then(({ data }) => {
+      const user = data.session?.user
+      setUserEmail(user?.email ?? '')
+      setUserId(user?.id ?? '')
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user.email ?? '')
+      setUserId(session?.user.id ?? '')
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   function downloadExport() {
     const blob = new Blob([exportEntries(entries)], { type: 'application/json' })
@@ -640,15 +668,156 @@ function SettingsView({
     }
   }
 
+  async function signUp() {
+    if (!supabase) return
+    if (!email.trim() || password.length < 6) {
+      setCloudMessage('请输入邮箱和至少 6 位密码。')
+      return
+    }
+
+    setIsSyncing(true)
+    setCloudMessage('')
+    try {
+      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password })
+      if (error) throw error
+      setCloudMessage(data.session ? '注册并登录成功。' : '注册成功。如果 Supabase 要求确认邮件，请先去邮箱点确认链接。')
+    } catch (error) {
+      setCloudMessage(error instanceof Error ? error.message : '注册失败。')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
+  async function signIn() {
+    if (!supabase) return
+    if (!email.trim() || !password) {
+      setCloudMessage('请输入邮箱和密码。')
+      return
+    }
+
+    setIsSyncing(true)
+    setCloudMessage('')
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+      if (error) throw error
+      setCloudMessage('登录成功。')
+    } catch (error) {
+      setCloudMessage(error instanceof Error ? error.message : '登录失败。')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
+  async function signOut() {
+    if (!supabase) return
+    setIsSyncing(true)
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      setCloudMessage('已退出登录，本地记录仍然保留。')
+    } catch (error) {
+      setCloudMessage(error instanceof Error ? error.message : '退出失败。')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
+  async function uploadLocalEntries() {
+    if (!userId) {
+      setCloudMessage('请先登录，再上传本地记录。')
+      return
+    }
+
+    setIsSyncing(true)
+    setCloudMessage('')
+    try {
+      await upsertCloudEntries(entries, userId)
+      setCloudMessage(`已上传 ${entries.length} 条记录到 Supabase。`)
+    } catch (error) {
+      setCloudMessage(error instanceof Error ? error.message : '上传失败，本地记录没有丢失。')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
+  async function pullCloudEntries() {
+    if (!userId) {
+      setCloudMessage('请先登录，再拉取云端记录。')
+      return
+    }
+
+    setIsSyncing(true)
+    setCloudMessage('')
+    try {
+      const cloudEntries = await fetchCloudEntries()
+      const merged = mergeEntries(entries, cloudEntries)
+      onImport(merged)
+      setCloudMessage(`已拉取 ${cloudEntries.length} 条云端记录，并和本地合并。`)
+    } catch (error) {
+      setCloudMessage(error instanceof Error ? error.message : '拉取失败，本地记录没有丢失。')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
   return (
     <section>
       <header className="section-header">
         <div>
           <h1>设置</h1>
-          <p>第一版本地优先：不登录、不云同步，敏感素材先留在你的设备上。</p>
+          <p>本地优先保存；登录后可以把文字记录和元信息同步到 Supabase。</p>
         </div>
       </header>
       <div className="settings-grid">
+        <div className="settings-block">
+          <h2>云同步</h2>
+          <p>视频原文件仍只保存在当前设备；云端同步标题、三问、正文、分类、标签和心灵小蜜摘要。</p>
+          {!hasSupabaseConfig ? (
+            <p className="settings-message warning">还没有读取到 Vercel 环境变量。请确认变量名是 VITE_SUPABASE_URL 和 VITE_SUPABASE_PUBLISHABLE_KEY。</p>
+          ) : userEmail ? (
+            <>
+              <div className="sync-status">
+                <span>已登录</span>
+                <strong>{userEmail}</strong>
+              </div>
+              <div className="settings-actions">
+                <button disabled={isSyncing} onClick={uploadLocalEntries} type="button">
+                  <Icon name="upload" size={17} />
+                  上传本地记录
+                </button>
+                <button disabled={isSyncing} onClick={pullCloudEntries} type="button">
+                  <Icon name="download" size={17} />
+                  拉取云端记录
+                </button>
+                <button className="danger-soft" disabled={isSyncing} onClick={signOut} type="button">
+                  退出登录
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="cloud-auth">
+                <label>
+                  <span>邮箱</span>
+                  <input autoComplete="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" type="email" value={email} />
+                </label>
+                <label>
+                  <span>密码</span>
+                  <input autoComplete="current-password" onChange={(event) => setPassword(event.target.value)} placeholder="至少 6 位" type="password" value={password} />
+                </label>
+              </div>
+              <div className="settings-actions">
+                <button disabled={isSyncing} onClick={signIn} type="button">
+                  登录
+                </button>
+                <button disabled={isSyncing} onClick={signUp} type="button">
+                  注册
+                </button>
+              </div>
+            </>
+          )}
+          {cloudMessage && <p className="settings-message">{cloudMessage}</p>}
+        </div>
         <div className="settings-block">
           <h2>本地数据</h2>
           <p>当前共有 {entries.length} 条记录。文字和记录元信息保存在 localStorage，视频保存在 IndexedDB。</p>

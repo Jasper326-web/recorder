@@ -205,6 +205,25 @@ export function importEntries(json: string): Entry[] {
   return entries
 }
 
+export function mergeEntries(localEntries: Entry[], incomingEntries: Entry[]): Entry[] {
+  const byId = new Map<string, Entry>()
+
+  for (const entry of incomingEntries) {
+    byId.set(entry.id, entry)
+  }
+
+  for (const entry of localEntries) {
+    const incoming = byId.get(entry.id)
+    byId.set(entry.id, {
+      ...incoming,
+      ...entry,
+      videoBlobRef: entry.videoBlobRef ?? incoming?.videoBlobRef,
+    })
+  }
+
+  return Array.from(byId.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+}
+
 export function toDateKey(date: Date) {
   const year = date.getFullYear()
   const month = `${date.getMonth() + 1}`.padStart(2, '0')

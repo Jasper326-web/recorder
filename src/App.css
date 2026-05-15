@@ -415,6 +415,34 @@ select {
   flex-wrap: wrap;
 }
 
+.cloud-auth {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cloud-auth label {
+  display: grid;
+  gap: 7px;
+}
+
+.cloud-auth span,
+.sync-status span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.sync-status {
+  display: grid;
+  gap: 4px;
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
 .recorder-actions button {
   min-height: 38px;
   display: inline-flex;
@@ -677,6 +705,10 @@ select {
   color: var(--teal) !important;
 }
 
+.settings-message.warning {
+  color: #943528 !important;
+}
+
 .companion-card {
   padding: 18px;
   min-height: 250px;
@@ -783,6 +815,10 @@ select {
   }
 
   .filters {
+    grid-template-columns: 1fr;
+  }
+
+  .cloud-auth {
     grid-template-columns: 1fr;
   }
 
