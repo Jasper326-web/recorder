@@ -20,6 +20,12 @@ await build({
   platform: 'browser',
   target: ['es2022'],
   outfile: path.join(assets, 'main.js'),
+  define: {
+    'import.meta.env': JSON.stringify({
+      VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL ?? '',
+      VITE_SUPABASE_PUBLISHABLE_KEY: process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '',
+    }),
+  },
   loader: {
     '.svg': 'file',
     '.png': 'file',
