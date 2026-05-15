@@ -19,6 +19,7 @@ await build({
   format: 'esm',
   platform: 'browser',
   target: ['es2022'],
+  jsx: 'automatic',
   outfile: path.join(assets, 'main.js'),
   define: {
     'import.meta.env': JSON.stringify({
