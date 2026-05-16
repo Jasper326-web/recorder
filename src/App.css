@@ -187,7 +187,7 @@ button:disabled {
 
 .record-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 310px;
+  grid-template-columns: minmax(0, 760px);
   gap: 18px;
   align-items: start;
 }
@@ -260,6 +260,10 @@ textarea {
 
 .body-textarea {
   min-height: 132px;
+}
+
+.simple-entry {
+  min-height: min(46svh, 420px);
 }
 
 input,

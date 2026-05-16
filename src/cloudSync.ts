@@ -1,6 +1,8 @@
 import type { Entry, EntryType, PromptAnswers, TrainingTrackName } from './domain'
 import { supabase } from './supabaseClient'
 
+const videoBucket = 'entry-videos'
+
 type EntryRow = {
   id: string
   user_id: string
@@ -39,6 +41,35 @@ export async function upsertCloudEntries(entries: Entry[], userId: string) {
   )
 
   if (error) throw error
+}
+
+export async function upsertCloudEntry(entry: Entry, userId: string) {
+  await upsertCloudEntries([entry], userId)
+}
+
+export async function uploadVideoBlob(entryId: string, userId: string, blob: Blob) {
+  if (!supabase) throw new Error('还没有配置 Supabase 环境变量。')
+
+  const extension = blob.type.includes('mp4') ? 'mp4' : 'webm'
+  const path = `${userId}/${entryId}.${extension}`
+  const { error } = await supabase.storage.from(videoBucket).upload(path, blob, {
+    cacheControl: '3600',
+    contentType: blob.type || 'video/webm',
+    upsert: true,
+  })
+
+  if (error) throw error
+
+  return path
+}
+
+export async function getCloudVideoUrl(path: string) {
+  if (!supabase) return ''
+
+  const { data, error } = await supabase.storage.from(videoBucket).createSignedUrl(path, 60 * 60)
+  if (error) return ''
+
+  return data.signedUrl
 }
 
 function entryToRow(entry: Entry, userId: string): EntryRow {

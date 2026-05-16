@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, FormEvent, ReactNode } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import './App.css'
 import {
-  analyzeEntry,
   buildCalendarDays,
   createEntry,
   exportEntries,
@@ -14,10 +13,10 @@ import {
   toDateKey,
   trainingTracks,
 } from './domain'
-import type { Entry, EntryType, PromptAnswers, TrainingTrackName } from './domain'
-import { fetchCloudEntries, upsertCloudEntries } from './cloudSync'
+import type { Entry, EntryType, TrainingTrackName } from './domain'
+import { fetchCloudEntries, getCloudVideoUrl, uploadVideoBlob, upsertCloudEntries, upsertCloudEntry } from './cloudSync'
 import { hasSupabaseConfig, supabase } from './supabaseClient'
-import { clearVideoBlobs, getVideoBlob, saveVideoBlob } from './videoStore'
+import { clearVideoBlobs } from './videoStore'
 
 type Tab = 'record' | 'calendar' | 'list' | 'companion' | 'settings'
 
@@ -49,12 +48,6 @@ type IconName =
   | 'upload'
   | 'video'
 
-const emptyAnswers: PromptAnswers = {
-  state: '',
-  event: '',
-  next: '',
-}
-
 const navItems: Array<{ id: Tab; label: string; icon: IconName }> = [
   { id: 'record', label: '记录', icon: 'home' },
   { id: 'calendar', label: '日历', icon: 'calendar' },
@@ -83,11 +76,6 @@ function App() {
     setEntries((current) => [entry, ...current])
     setSelectedEntryId(entry.id)
     setStatus('已保存。你刚刚又多看见了自己一点。')
-  }
-
-  function updateEntry(nextEntry: Entry) {
-    setEntries((current) => current.map((entry) => (entry.id === nextEntry.id ? nextEntry : entry)))
-    setSelectedEntryId(nextEntry.id)
   }
 
   async function clearAll() {
@@ -132,7 +120,7 @@ function App() {
       </aside>
 
       <main className="main-panel">
-        {activeTab === 'record' && <RecordView onAddEntry={addEntry} recentEntry={selectedEntry} onUpdateEntry={updateEntry} />}
+        {activeTab === 'record' && <RecordView onAddEntry={addEntry} />}
         {activeTab === 'calendar' && <CalendarView entries={entries} onSelectEntry={setSelectedEntryId} />}
         {activeTab === 'list' && <ListView entries={sortedEntries} onSelectEntry={setSelectedEntryId} />}
         {activeTab === 'companion' && <CompanionView entries={sortedEntries} selectedEntry={selectedEntry} />}
@@ -170,25 +158,15 @@ function App() {
   )
 }
 
-function RecordView({
-  onAddEntry,
-  recentEntry,
-  onUpdateEntry,
-}: {
-  onAddEntry: (entry: Entry) => void
-  recentEntry?: Entry
-  onUpdateEntry: (entry: Entry) => void
-}) {
+function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
   const [type, setType] = useState<EntryType>('text')
-  const [answers, setAnswers] = useState<PromptAnswers>(emptyAnswers)
   const [bodyText, setBodyText] = useState('')
-  const [category, setCategory] = useState<TrainingTrackName | ''>('')
-  const [tags, setTags] = useState('')
   const [error, setError] = useState('')
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
   const [recordedUrl, setRecordedUrl] = useState('')
   const [isRecording, setIsRecording] = useState(false)
   const [cameraReady, setCameraReady] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -251,54 +229,48 @@ function RecordView({
   async function submitEntry(event: FormEvent) {
     event.preventDefault()
     setError('')
-    const hasText = [answers.state, answers.event, answers.next, bodyText].some((value) => value.trim())
-    if (!hasText) {
-      setError('先写下一点点也可以。至少回答一个问题。')
+    if (type === 'text' && !bodyText.trim()) {
+      setError('先写下一点点也可以。')
       return
     }
     if (type === 'video' && !recordedBlob) {
       setError('视频记录需要先完成一段录制。')
       return
     }
+    if (!supabase) {
+      setError('还没有配置 Supabase，暂时不能上传记录。')
+      return
+    }
 
+    setIsSaving(true)
     try {
-      const videoBlobRef = type === 'video' ? `video-${crypto.randomUUID()}` : undefined
-      if (videoBlobRef && recordedBlob) await saveVideoBlob(videoBlobRef, recordedBlob)
-      const entry = createEntry({
+      const { data } = await supabase.auth.getSession()
+      const userId = data.session?.user.id
+
+      if (!userId) {
+        setError('请先到设置页登录，再保存记录。')
+        return
+      }
+
+      const baseEntry = createEntry({
         type,
-        promptAnswers: answers,
         bodyText,
-        videoBlobRef,
-        category: category || undefined,
-        tags: tags
-          .split(/[,\s，]+/)
-          .map((tag) => tag.trim())
-          .filter(Boolean),
       })
+      const videoBlobRef = type === 'video' && recordedBlob ? await uploadVideoBlob(baseEntry.id, userId, recordedBlob) : undefined
+      const entry = videoBlobRef ? { ...baseEntry, videoBlobRef } : baseEntry
+
+      await upsertCloudEntry(entry, userId)
       onAddEntry(entry)
-      setAnswers(emptyAnswers)
       setBodyText('')
-      setCategory('')
-      setTags('')
       setRecordedBlob(null)
       if (recordedUrl) URL.revokeObjectURL(recordedUrl)
       setRecordedUrl('')
       stopCamera()
-    } catch {
-      setError('保存失败。请先保留当前页面，稍后再试；已输入内容没有被清空。')
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : '上传失败。请先保留当前页面，稍后再试。')
+    } finally {
+      setIsSaving(false)
     }
-  }
-
-  function acceptAnalysis() {
-    if (!recentEntry) return
-    const analysis = analyzeEntry(recentEntry)
-    onUpdateEntry({
-      ...recentEntry,
-      category: analysis.category,
-      tags: analysis.tags,
-      aiSummary: analysis.summary,
-      aiReflection: analysis.reflection,
-    })
   }
 
   return (
@@ -306,7 +278,7 @@ function RecordView({
       <header className="section-header">
         <div>
           <h1>开始记录</h1>
-          <p>不用写得好，也不用说得完整。频繁看见自己，改变才有抓手。</p>
+          <p>打开就写，或者打开摄像头就录。记录完成后会自动上传到 Supabase。</p>
         </div>
         <div className="mode-switch" aria-label="记录类型">
           <button className={type === 'text' ? 'active' : ''} onClick={() => setType('text')} type="button">
@@ -322,36 +294,17 @@ function RecordView({
 
       <form className="record-layout" onSubmit={submitEntry}>
         <div className="record-composer">
-          <PromptTextarea
-            label="我现在是什么状态？"
-            value={answers.state}
-            onChange={(value) => setAnswers((current) => ({ ...current, state: value }))}
-            placeholder="比如：有点烦、很清醒、脑子乱、想把话说清楚..."
-          />
-          <PromptTextarea
-            label="刚才/今天发生了什么？"
-            value={answers.event}
-            onChange={(value) => setAnswers((current) => ({ ...current, event: value }))}
-            placeholder="把事实说出来，不急着评价自己。"
-          />
-          <PromptTextarea
-            label="我接下来想怎么做？"
-            value={answers.next}
-            onChange={(value) => setAnswers((current) => ({ ...current, next: value }))}
-            placeholder="一个很小的下一步就够。"
-          />
-
-          <label className="field-block">
-            <span>补充记录</span>
-            <textarea
-              className="body-textarea"
-              onChange={(event) => setBodyText(event.target.value)}
-              placeholder={type === 'video' ? '可以写下这段视频想训练什么。' : '继续展开你的想法、复述一遍要表达的话，或把混乱拆开。'}
-              value={bodyText}
-            />
-          </label>
-
-          {type === 'video' && (
+          {type === 'text' ? (
+            <label className="field-block">
+              <span>文字记录</span>
+              <textarea
+                className="body-textarea simple-entry"
+                onChange={(event) => setBodyText(event.target.value)}
+                placeholder="直接写下此刻的真实状态、刚发生的事、想法或下一步。"
+                value={bodyText}
+              />
+            </label>
+          ) : (
             <div className="video-recorder">
               <div className="camera-frame">
                 {recordedUrl ? (
@@ -382,75 +335,15 @@ function RecordView({
               </div>
             </div>
           )}
-        </div>
-
-        <aside className="record-side">
-          <div className="training-panel">
-            <h2>这次主要训练什么？</h2>
-            <div className="track-options">
-              {trainingTracks.map((track) => (
-                <button
-                  className={category === track.name ? 'track-option active' : 'track-option'}
-                  key={track.name}
-                  onClick={() => setCategory(track.name)}
-                  style={{ '--track-color': track.color } as CSSProperties}
-                  type="button"
-                >
-                  <strong>{track.name}</strong>
-                  <span>{track.intent}</span>
-                </button>
-              ))}
-            </div>
-            <label className="field-block compact">
-              <span>自定义标签</span>
-              <input onChange={(event) => setTags(event.target.value)} placeholder="例如 情绪控制, 复述, 清晰" value={tags} />
-            </label>
-          </div>
 
           {error && <p className="form-error">{error}</p>}
-          <button className="primary-action" type="submit">
+          <button className="primary-action" disabled={isSaving} type="submit">
             <Icon name="plus" size={19} />
-            保存这次记录
+            {isSaving ? '正在上传' : '保存并上传'}
           </button>
-
-          {recentEntry && (
-            <div className="after-save">
-              <h2>刚刚的沉淀</h2>
-              <p>{recentEntry.aiSummary}</p>
-              <div className="chip-row">
-                <span>{recentEntry.category}</span>
-                {recentEntry.tags.slice(0, 3).map((tag) => (
-                  <span key={tag}>{tag}</span>
-                ))}
-              </div>
-              <button onClick={acceptAnalysis} type="button">
-                <Icon name="check" size={17} />
-                接受心灵小蜜建议
-              </button>
-            </div>
-          )}
-        </aside>
+        </div>
       </form>
     </section>
-  )
-}
-
-function PromptTextarea({
-  label,
-  value,
-  placeholder,
-  onChange,
-}: {
-  label: string
-  value: string
-  placeholder: string
-  onChange: (value: string) => void
-}) {
-  return (
-    <label className="prompt-card">
-      <span>{label}</span>
-      <textarea onChange={(event) => onChange(event.target.value)} placeholder={placeholder} value={value} />
-    </label>
   )
 }
 
@@ -950,20 +843,19 @@ function VideoPlayback({ videoBlobRef }: { videoBlobRef: string }) {
 
   useEffect(() => {
     let isMounted = true
-    getVideoBlob(videoBlobRef).then((blob) => {
-      if (blob && isMounted) setUrl(URL.createObjectURL(blob))
+    getCloudVideoUrl(videoBlobRef).then((signedUrl) => {
+      if (signedUrl && isMounted) setUrl(signedUrl)
     })
     return () => {
       isMounted = false
-      if (url) URL.revokeObjectURL(url)
     }
-  }, [videoBlobRef, url])
+  }, [videoBlobRef])
 
   if (!url) {
     return (
       <div className="video-placeholder">
         <Icon name="play" size={18} />
-        本地视频正在读取
+        视频正在读取
       </div>
     )
   }

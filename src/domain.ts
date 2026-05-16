@@ -28,7 +28,7 @@ export type Entry = {
 
 export type EntryDraft = {
   type: EntryType
-  promptAnswers: PromptAnswers
+  promptAnswers?: PromptAnswers
   bodyText: string
   videoBlobRef?: string
   title?: string
@@ -95,16 +95,18 @@ const entryStorageKey = 'self-recorder.entries.v1'
 
 export function createEntry(draft: EntryDraft): Entry {
   const createdAt = draft.createdAt ?? new Date()
-  const category = draft.category ?? inferCategory(draft)
-  const tags = mergeTags(draft.tags ?? [], inferTags(draft, category))
+  const promptAnswers = draft.promptAnswers ?? { state: '', event: '', next: '' }
+  const normalizedDraft = { ...draft, promptAnswers }
+  const category = draft.category ?? inferCategory(normalizedDraft)
+  const tags = mergeTags(draft.tags ?? [], inferTags(normalizedDraft, category))
   const shell: Omit<Entry, 'aiSummary' | 'aiReflection'> = {
     id: `entry-${createdAt.getTime()}-${Math.random().toString(16).slice(2, 8)}`,
     createdAt: createdAt.toISOString(),
     type: draft.type,
-    promptAnswers: draft.promptAnswers,
+    promptAnswers,
     bodyText: draft.bodyText.trim(),
     videoBlobRef: draft.videoBlobRef,
-    title: draft.title?.trim() || buildTitle(draft),
+    title: draft.title?.trim() || buildTitle(normalizedDraft),
     category,
     tags,
   }
@@ -166,7 +168,7 @@ export function filterEntries(entries: Entry[], filter: EntryFilter): Entry[] {
   return entries.filter((entry) => {
     const matchesType = !filter.type || filter.type === 'all' || entry.type === filter.type
     const matchesCategory = !filter.category || filter.category === 'all' || entry.category === filter.category
-    const searchable = [entry.title, entry.bodyText, entry.promptAnswers.state, entry.promptAnswers.event, entry.promptAnswers.next, ...entry.tags]
+  const searchable = [entry.title, entry.bodyText, entry.promptAnswers.state, entry.promptAnswers.event, entry.promptAnswers.next, ...entry.tags]
       .join(' ')
       .toLowerCase()
     const matchesQuery = !query || searchable.includes(query)
@@ -232,7 +234,8 @@ export function toDateKey(date: Date) {
 }
 
 function inferCategory(draft: Pick<EntryDraft, 'promptAnswers' | 'bodyText'>): TrainingTrackName {
-  const text = [draft.promptAnswers.state, draft.promptAnswers.event, draft.promptAnswers.next, draft.bodyText].join(' ')
+  const answers = draft.promptAnswers ?? { state: '', event: '', next: '' }
+  const text = [answers.state, answers.event, answers.next, draft.bodyText].join(' ')
   const scores = trainingTracks.map((track) => ({
     name: track.name,
     score: trackKeywords[track.name].reduce((sum, keyword) => {
@@ -246,7 +249,8 @@ function inferCategory(draft: Pick<EntryDraft, 'promptAnswers' | 'bodyText'>): T
 }
 
 function inferTags(draft: Pick<EntryDraft, 'promptAnswers' | 'bodyText'>, category: TrainingTrackName) {
-  const text = [draft.promptAnswers.state, draft.promptAnswers.event, draft.promptAnswers.next, draft.bodyText].join(' ')
+  const answers = draft.promptAnswers ?? { state: '', event: '', next: '' }
+  const text = [answers.state, answers.event, answers.next, draft.bodyText].join(' ')
   const tags = trainingTracks.find((track) => track.name === category)?.tags.slice(0, 2) ?? []
 
   if (text.includes('表达') || text.includes('说') || text.includes('开会')) tags.push('口才表达')
@@ -258,7 +262,7 @@ function inferTags(draft: Pick<EntryDraft, 'promptAnswers' | 'bodyText'>, catego
 }
 
 function buildTitle(draft: Pick<EntryDraft, 'bodyText' | 'promptAnswers' | 'type'>) {
-  const source = draft.bodyText || draft.promptAnswers.event || draft.promptAnswers.state || (draft.type === 'video' ? '一段视频记录' : '一条文字记录')
+  const source = draft.bodyText || draft.promptAnswers?.event || draft.promptAnswers?.state || (draft.type === 'video' ? '一段视频记录' : '一条文字记录')
   return source.replace(/\s+/g, ' ').slice(0, 22)
 }
 
