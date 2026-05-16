@@ -666,6 +666,15 @@ select {
   margin-top: 3px;
 }
 
+.chat-error {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  color: #943528;
+  background: rgba(228, 109, 88, 0.12);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
 .chat-input {
   margin-top: 12px;
   display: grid;

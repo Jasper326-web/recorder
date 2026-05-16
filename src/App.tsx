@@ -571,17 +571,58 @@ function CompanionView({ entries, selectedEntry }: { entries: Entry[]; selectedE
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      content: '我是心灵小蜜。你可以让我总结今天、分析一条记录，或者帮你把混乱想法拆清楚。',
+      content: '我是心灵小蜜。登录并同步后，我会读取你 Supabase 里的日记作为上下文，陪你总结今天、分析模式，或把混乱想法拆清楚。',
     },
   ])
   const [input, setInput] = useState('')
+  const [isThinking, setIsThinking] = useState(false)
+  const [error, setError] = useState('')
 
-  function sendMessage(event: FormEvent) {
+  async function sendMessage(event: FormEvent) {
     event.preventDefault()
     if (!input.trim()) return
-    const reply = buildCompanionReply(input, entries, selectedEntry)
-    setMessages((current) => [...current, { role: 'user', content: input }, { role: 'assistant', content: reply }])
+    if (!supabase) {
+      setError('还没有配置 Supabase，暂时不能让心灵小蜜读取云端日记。')
+      return
+    }
+
+    const nextMessages: ChatMessage[] = [...messages, { role: 'user', content: input.trim() }]
+    setMessages(nextMessages)
     setInput('')
+    setError('')
+    setIsThinking(true)
+
+    try {
+      const { data } = await supabase.auth.getSession()
+      const accessToken = data.session?.access_token
+
+      if (!accessToken) {
+        throw new Error('请先到设置页登录 Supabase，并上传或拉取日记。')
+      }
+
+      const response = await fetch('/api/companion', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ messages: nextMessages }),
+      })
+      const payload = await response.json()
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? '心灵小蜜暂时没有回复。')
+      }
+
+      setMessages((current) => [...current, { role: 'assistant', content: payload.reply }])
+    } catch (requestError) {
+      const fallbackReply = buildCompanionReply(input, entries, selectedEntry)
+      setMessages((current) => [...current, { role: 'assistant', content: fallbackReply }])
+      setInput(input)
+      setError(requestError instanceof Error ? requestError.message : '心灵小蜜暂时不可用。')
+    } finally {
+      setIsThinking(false)
+    }
   }
 
   return (
@@ -599,12 +640,19 @@ function CompanionView({ entries, selectedEntry }: { entries: Entry[]; selectedE
             <p>{message.content}</p>
           </div>
         ))}
+        {isThinking && (
+          <div className="message assistant">
+            <Icon name="bot" size={18} />
+            <p>我正在读取你的云端日记，再慢慢想清楚。</p>
+          </div>
+        )}
       </div>
+      {error && <p className="chat-error">{error}</p>}
       <form className="chat-input" onSubmit={sendMessage}>
-        <input onChange={(event) => setInput(event.target.value)} placeholder="例如：帮我总结今天，或者分析最近的情绪模式" value={input} />
-        <button type="submit">
+        <input disabled={isThinking} onChange={(event) => setInput(event.target.value)} placeholder="例如：帮我总结今天，或者分析最近的情绪模式" value={input} />
+        <button disabled={isThinking} type="submit">
           <Icon name="sparkles" size={18} />
-          发送
+          {isThinking ? '思考' : '发送'}
         </button>
       </form>
     </section>
