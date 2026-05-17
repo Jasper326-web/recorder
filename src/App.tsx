@@ -4,17 +4,14 @@ import './App.css'
 import {
   buildCalendarDays,
   createEntry,
-  exportEntries,
   filterEntries,
-  importEntries,
   loadEntries,
-  mergeEntries,
   saveEntries,
   toDateKey,
   trainingTracks,
 } from './domain'
 import type { Entry, EntryType, TrainingTrackName } from './domain'
-import { fetchCloudEntries, getCloudVideoUrl, uploadVideoBlob, upsertCloudEntries, upsertCloudEntry } from './cloudSync'
+import { getCloudVideoUrl, uploadVideoBlob, upsertCloudEntry } from './cloudSync'
 import { hasSupabaseConfig, supabase } from './supabaseClient'
 import { clearVideoBlobs } from './videoStore'
 
@@ -124,7 +121,7 @@ function App() {
         {activeTab === 'calendar' && <CalendarView entries={entries} onSelectEntry={setSelectedEntryId} />}
         {activeTab === 'list' && <ListView entries={sortedEntries} onSelectEntry={setSelectedEntryId} />}
         {activeTab === 'companion' && <CompanionView entries={sortedEntries} onOpenSettings={() => setActiveTab('settings')} selectedEntry={selectedEntry} />}
-        {activeTab === 'settings' && <SettingsView entries={sortedEntries} onImport={setEntries} onClear={clearAll} />}
+        {activeTab === 'settings' && <SettingsView onClear={clearAll} />}
       </main>
 
       <aside className="companion-rail">
@@ -472,7 +469,7 @@ function CompanionView({
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      content: '我是心灵小蜜。登录并同步后，我会读取你 Supabase 里的日记作为上下文，陪你总结今天、分析模式，或把混乱想法拆清楚。',
+      content: '我是心灵小蜜。你可以直接和我聊天；登录后，我会读取你 Supabase 里的文字记录作为上下文。',
     },
   ])
   const [input, setInput] = useState('')
@@ -515,7 +512,7 @@ function CompanionView({
       const accessToken = data.session?.access_token
 
       if (!accessToken) {
-        throw new Error('请先登录 Supabase。登录后，小蜜会读取你云端的文字记录作为上下文。')
+        throw new Error('请先登录 Supabase。登录后即使还没有记录，也可以和小蜜聊天；有记录时我会把它们作为上下文。')
       }
 
       const response = await fetch('/api/companion', {
@@ -555,8 +552,8 @@ function CompanionView({
         <div className="chat-login-panel">
           <Icon name="bot" size={19} />
           <div>
-            <strong>先登录 Supabase</strong>
-            <p>登录后，小蜜才能用你的云端文字记录作为上下文。已有本地旧记录可以在设置页先上传。</p>
+            <strong>连接 Supabase 后更懂你</strong>
+            <p>没有记录也能聊天；登录后，小蜜会读取你已上传的文字记录作为上下文。</p>
           </div>
           <button onClick={onOpenSettings} type="button">
             去设置
@@ -590,20 +587,14 @@ function CompanionView({
 }
 
 function SettingsView({
-  entries,
-  onImport,
   onClear,
 }: {
-  entries: Entry[]
-  onImport: (entries: Entry[]) => void
   onClear: () => void
 }) {
-  const [message, setMessage] = useState('')
   const [cloudMessage, setCloudMessage] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [userEmail, setUserEmail] = useState('')
-  const [userId, setUserId] = useState('')
   const [isSyncing, setIsSyncing] = useState(false)
 
   useEffect(() => {
@@ -612,39 +603,16 @@ function SettingsView({
     supabase.auth.getSession().then(({ data }) => {
       const user = data.session?.user
       setUserEmail(user?.email ?? '')
-      setUserId(user?.id ?? '')
     })
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserEmail(session?.user.email ?? '')
-      setUserId(session?.user.id ?? '')
     })
 
     return () => subscription.unsubscribe()
   }, [])
-
-  function downloadExport() {
-    const blob = new Blob([exportEntries(entries)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = `self-recorder-${toDateKey(new Date())}.json`
-    anchor.click()
-    URL.revokeObjectURL(url)
-    setMessage('已导出记录元数据。视频原始文件仍只保存在本机浏览器里。')
-  }
-
-  async function handleImport(file?: File) {
-    if (!file) return
-    try {
-      onImport(importEntries(await file.text()))
-      setMessage('导入完成。')
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : '导入失败。')
-    }
-  }
 
   async function signUp() {
     if (!supabase) return
@@ -692,47 +660,9 @@ function SettingsView({
     try {
       const { error } = await supabase.auth.signOut()
       if (error) throw error
-      setCloudMessage('已退出登录，本地记录仍然保留。')
+      setCloudMessage('已退出登录。之后保存记录前需要重新登录。')
     } catch (error) {
       setCloudMessage(error instanceof Error ? error.message : '退出失败。')
-    } finally {
-      setIsSyncing(false)
-    }
-  }
-
-  async function uploadLocalEntries() {
-    if (!userId) {
-      setCloudMessage('请先登录，再上传本地记录。')
-      return
-    }
-
-    setIsSyncing(true)
-    setCloudMessage('')
-    try {
-      await upsertCloudEntries(entries, userId)
-      setCloudMessage(`已上传 ${entries.length} 条记录到 Supabase。`)
-    } catch (error) {
-      setCloudMessage(error instanceof Error ? error.message : '上传失败，本地记录没有丢失。')
-    } finally {
-      setIsSyncing(false)
-    }
-  }
-
-  async function pullCloudEntries() {
-    if (!userId) {
-      setCloudMessage('请先登录，再拉取云端记录。')
-      return
-    }
-
-    setIsSyncing(true)
-    setCloudMessage('')
-    try {
-      const cloudEntries = await fetchCloudEntries()
-      const merged = mergeEntries(entries, cloudEntries)
-      onImport(merged)
-      setCloudMessage(`已拉取 ${cloudEntries.length} 条云端记录，并和本地合并。`)
-    } catch (error) {
-      setCloudMessage(error instanceof Error ? error.message : '拉取失败，本地记录没有丢失。')
     } finally {
       setIsSyncing(false)
     }
@@ -743,13 +673,13 @@ function SettingsView({
       <header className="section-header">
         <div>
           <h1>设置</h1>
-          <p>本地优先保存；登录后可以把文字记录和元信息同步到 Supabase。</p>
+          <p>登录后，文字和视频记录会在点击保存时自动上传到 Supabase。</p>
         </div>
       </header>
       <div className="settings-grid">
         <div className="settings-block">
-          <h2>云同步</h2>
-          <p>视频原文件仍只保存在当前设备；云端同步标题、三问、正文、分类、标签和心灵小蜜摘要。</p>
+          <h2>账号连接</h2>
+          <p>这里不是手动同步入口。它只负责连接你的 Supabase 账号；之后在记录页点击保存，文字会写入数据库，视频会上传到 Storage。</p>
           {!hasSupabaseConfig ? (
             <p className="settings-message warning">还没有读取到 Vercel 环境变量。请确认变量名是 VITE_SUPABASE_URL 和 VITE_SUPABASE_PUBLISHABLE_KEY。</p>
           ) : userEmail ? (
@@ -759,14 +689,6 @@ function SettingsView({
                 <strong>{userEmail}</strong>
               </div>
               <div className="settings-actions">
-                <button disabled={isSyncing} onClick={uploadLocalEntries} type="button">
-                  <Icon name="upload" size={17} />
-                  上传本地记录
-                </button>
-                <button disabled={isSyncing} onClick={pullCloudEntries} type="button">
-                  <Icon name="download" size={17} />
-                  拉取云端记录
-                </button>
                 <button className="danger-soft" disabled={isSyncing} onClick={signOut} type="button">
                   退出登录
                 </button>
@@ -797,28 +719,18 @@ function SettingsView({
           {cloudMessage && <p className="settings-message">{cloudMessage}</p>}
         </div>
         <div className="settings-block">
-          <h2>本地数据</h2>
-          <p>当前共有 {entries.length} 条记录。文字和记录元信息保存在 localStorage，视频保存在 IndexedDB。</p>
+          <h2>本机缓存</h2>
+          <p>网站会保留一份临时本机缓存，用来让页面刷新后还能显示刚保存的记录。真正长期保存以 Supabase 为准。</p>
           <div className="settings-actions">
-            <button onClick={downloadExport} type="button">
-              <Icon name="download" size={17} />
-              导出记录
-            </button>
-            <label className="file-button">
-              <Icon name="upload" size={17} />
-              导入 JSON
-              <input accept="application/json" onChange={(event) => handleImport(event.target.files?.[0])} type="file" />
-            </label>
             <button className="danger-soft" onClick={onClear} type="button">
               <Icon name="trash" size={17} />
-              清空本地数据
+              清空本机缓存
             </button>
           </div>
-          {message && <p className="settings-message">{message}</p>}
         </div>
         <div className="settings-block">
-          <h2>AI 使用说明</h2>
-          <p>当前版本使用本地模拟的心灵小蜜反馈。后续接真实 AI 时，默认只读取文字、标题、分类、标签和摘要；视频必须由你手动选择后才会分析。</p>
+          <h2>心灵小蜜</h2>
+          <p>小蜜会读取 Supabase 里已上传的文字记录作为上下文。没有记录时也可以聊天，只是它会明确说明暂时没有日记材料。</p>
         </div>
       </div>
     </section>
