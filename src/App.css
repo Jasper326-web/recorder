@@ -670,6 +670,42 @@ select {
   margin-top: 3px;
 }
 
+.chat-login-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.chat-login-panel svg {
+  color: var(--teal);
+}
+
+.chat-login-panel strong {
+  display: block;
+  margin-bottom: 3px;
+}
+
+.chat-login-panel p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.chat-login-panel button {
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 7px;
+  color: white;
+  background: var(--ink);
+}
+
 .chat-error {
   margin: 10px 0 0;
   padding: 10px 12px;

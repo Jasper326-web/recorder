@@ -123,7 +123,7 @@ function App() {
         {activeTab === 'record' && <RecordView onAddEntry={addEntry} />}
         {activeTab === 'calendar' && <CalendarView entries={entries} onSelectEntry={setSelectedEntryId} />}
         {activeTab === 'list' && <ListView entries={sortedEntries} onSelectEntry={setSelectedEntryId} />}
-        {activeTab === 'companion' && <CompanionView entries={sortedEntries} selectedEntry={selectedEntry} />}
+        {activeTab === 'companion' && <CompanionView entries={sortedEntries} onOpenSettings={() => setActiveTab('settings')} selectedEntry={selectedEntry} />}
         {activeTab === 'settings' && <SettingsView entries={sortedEntries} onImport={setEntries} onClear={clearAll} />}
       </main>
 
@@ -460,7 +460,15 @@ function ListView({ entries, onSelectEntry }: { entries: Entry[]; onSelectEntry:
   )
 }
 
-function CompanionView({ entries, selectedEntry }: { entries: Entry[]; selectedEntry?: Entry }) {
+function CompanionView({
+  entries,
+  selectedEntry,
+  onOpenSettings,
+}: {
+  entries: Entry[]
+  selectedEntry?: Entry
+  onOpenSettings: () => void
+}) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
@@ -470,6 +478,23 @@ function CompanionView({ entries, selectedEntry }: { entries: Entry[]; selectedE
   const [input, setInput] = useState('')
   const [isThinking, setIsThinking] = useState(false)
   const [error, setError] = useState('')
+  const [userEmail, setUserEmail] = useState('')
+
+  useEffect(() => {
+    if (!supabase) return
+
+    supabase.auth.getSession().then(({ data }) => {
+      setUserEmail(data.session?.user.email ?? '')
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user.email ?? '')
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   async function sendMessage(event: FormEvent) {
     event.preventDefault()
@@ -490,7 +515,7 @@ function CompanionView({ entries, selectedEntry }: { entries: Entry[]; selectedE
       const accessToken = data.session?.access_token
 
       if (!accessToken) {
-        throw new Error('请先到设置页登录 Supabase，并上传或拉取日记。')
+        throw new Error('请先登录 Supabase。登录后，小蜜会读取你云端的文字记录作为上下文。')
       }
 
       const response = await fetch('/api/companion', {
@@ -526,6 +551,18 @@ function CompanionView({ entries, selectedEntry }: { entries: Entry[]; selectedE
           <p>它不会替你下诊断，只帮你把记录里的情绪、事实和下一步看清楚。</p>
         </div>
       </header>
+      {!userEmail && (
+        <div className="chat-login-panel">
+          <Icon name="bot" size={19} />
+          <div>
+            <strong>先登录 Supabase</strong>
+            <p>登录后，小蜜才能用你的云端文字记录作为上下文。已有本地旧记录可以在设置页先上传。</p>
+          </div>
+          <button onClick={onOpenSettings} type="button">
+            去设置
+          </button>
+        </div>
+      )}
       <div className="chat-window">
         {messages.map((message, index) => (
           <div className={`message ${message.role}`} key={`${message.role}-${index}`}>
