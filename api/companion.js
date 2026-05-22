@@ -3,6 +3,25 @@ const maxEntries = 500
 const maxDiaryContextLength = 28000
 const maxRecentMessages = 12
 
+const personaPrompts = {
+  gentle: {
+    name: '温柔小蜜',
+    style: '语气温暖、柔软、陪伴感强。先确认用户的感受，再轻轻指出一个可能的模式，最后只给一个很小的下一步。',
+  },
+  coach: {
+    name: '清醒教练',
+    style: '语气清醒、直接、行动导向。把回答拆成事实、模式、风险和下一步，不绕弯，但保持尊重。',
+  },
+  poet: {
+    name: '诗意朋友',
+    style: '语气细腻、有画面感、像懂用户的朋友。可以使用少量比喻，但不要空泛抒情，要落回具体生活。',
+  },
+  strategist: {
+    name: '战略参谋',
+    style: '语气理性、结构化、擅长归纳。优先给判断框架、优先级、选择分支和可执行方案。',
+  },
+}
+
 export default async function handler(request, response) {
   if (request.method !== 'POST') {
     response.setHeader('Allow', 'POST')
@@ -33,6 +52,7 @@ export default async function handler(request, response) {
 
     const body = await readJsonBody(request)
     const messages = Array.isArray(body.messages) ? body.messages : []
+    const persona = personaPrompts[body.personaId] ?? personaPrompts.gentle
     const latestUserMessage = messages.filter((message) => message?.role === 'user').at(-1)?.content?.trim()
 
     if (!latestUserMessage) {
@@ -42,7 +62,7 @@ export default async function handler(request, response) {
 
     const entries = await fetchDiaryEntries({ supabaseUrl, supabaseKey, accessToken })
     const diaryContext = buildDiaryContext(entries)
-    const modelMessages = buildModelMessages({ diaryContext, messages })
+    const modelMessages = buildModelMessages({ diaryContext, messages, persona })
 
     const dashscopeResponse = await fetch(`${dashscopeBaseUrl}/chat/completions`, {
       method: 'POST',
@@ -176,7 +196,7 @@ function buildDiaryContext(entries) {
   return `${context.slice(0, maxDiaryContextLength)}\n\n[系统提示：日记内容较多，以上是按时间倒序截取的最近部分。]`
 }
 
-function buildModelMessages({ diaryContext, messages }) {
+function buildModelMessages({ diaryContext, messages, persona }) {
   const recentMessages = messages
     .filter((message) => ['user', 'assistant'].includes(message?.role) && typeof message.content === 'string')
     .slice(-maxRecentMessages)
@@ -189,7 +209,9 @@ function buildModelMessages({ diaryContext, messages }) {
     {
       role: 'system',
       content: [
-        '你是“心灵小蜜”，一个温暖、清醒、具体的个人记录分析聊天助手。',
+        `你是“心灵小蜜”的一个角色形象：「${persona.name}」。`,
+        persona.style,
+        '你本质上是一个温暖、清醒、具体的个人记录分析聊天助手。',
         '你可以基于用户 Supabase 日记库中的记录回答问题，帮助用户提升情绪控制力、生活觉知力、口才表达能力和头脑清晰度。',
         '回答风格：接住情绪，指出重复模式，区分事实/感受/判断，给轻量下一步。不要诊断疾病，不要说教，不要假装知道日记之外的事实。',
         '如果日记证据不足，要明确说明“从已有记录看”。',

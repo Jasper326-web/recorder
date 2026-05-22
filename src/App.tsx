@@ -23,6 +23,35 @@ type ChatMessage = {
   content: string
 }
 
+type CompanionPersonaId = 'gentle' | 'coach' | 'poet' | 'strategist'
+
+const companionPersonas: Array<{
+  id: CompanionPersonaId
+  name: string
+  description: string
+}> = [
+  {
+    id: 'gentle',
+    name: '温柔小蜜',
+    description: '先接住情绪，再给很小的一步。',
+  },
+  {
+    id: 'coach',
+    name: '清醒教练',
+    description: '直接拆事实、模式和行动。',
+  },
+  {
+    id: 'poet',
+    name: '诗意朋友',
+    description: '更细腻、更有画面感地回应。',
+  },
+  {
+    id: 'strategist',
+    name: '战略参谋',
+    description: '把记录整理成选择、优先级和方案。',
+  },
+]
+
 type IconName =
   | 'bot'
   | 'calendar'
@@ -158,10 +187,6 @@ function App() {
         {activeTab === 'companion' && <CompanionView entries={sortedEntries} onOpenSettings={() => setActiveTab('settings')} selectedEntry={selectedEntry} />}
         {activeTab === 'settings' && <SettingsView onClear={clearAll} />}
       </main>
-
-      <aside className="companion-rail">
-        <CompanionCard entry={selectedEntry} total={entries.length} />
-      </aside>
 
       <nav className="mobile-nav" aria-label="移动端主导航">
         {navItems.map((item) => {
@@ -511,6 +536,7 @@ function CompanionView({
   const [isThinking, setIsThinking] = useState(false)
   const [error, setError] = useState('')
   const [userEmail, setUserEmail] = useState('')
+  const [personaId, setPersonaId] = useState<CompanionPersonaId>('gentle')
 
   useEffect(() => {
     if (!supabase) return
@@ -556,7 +582,7 @@ function CompanionView({
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ messages: nextMessages }),
+        body: JSON.stringify({ messages: nextMessages, personaId }),
       })
       const payload = await response.json()
 
@@ -583,6 +609,19 @@ function CompanionView({
           <p>它不会替你下诊断，只帮你把记录里的情绪、事实和下一步看清楚。</p>
         </div>
       </header>
+      <div className="persona-picker" aria-label="心灵小蜜角色">
+        {companionPersonas.map((persona) => (
+          <button
+            className={personaId === persona.id ? 'persona-option active' : 'persona-option'}
+            key={persona.id}
+            onClick={() => setPersonaId(persona.id)}
+            type="button"
+          >
+            <strong>{persona.name}</strong>
+            <span>{persona.description}</span>
+          </button>
+        ))}
+      </div>
       {!userEmail && (
         <div className="chat-login-panel">
           <Icon name="bot" size={19} />
@@ -775,34 +814,6 @@ function SettingsView({
         </div>
       </div>
     </section>
-  )
-}
-
-function CompanionCard({ entry, total }: { entry?: Entry; total: number }) {
-  return (
-    <div className="companion-card">
-      <div className="companion-title">
-        <Icon name="bot" size={20} />
-        <strong>心灵小蜜</strong>
-      </div>
-      {entry ? (
-        <>
-          <p>{entry.aiReflection}</p>
-          <div className="mini-stat">
-            <span>总记录</span>
-            <strong>{total}</strong>
-          </div>
-          <div className="chip-row">
-            <span>{entry.category}</span>
-            {entry.tags.slice(0, 2).map((tag) => (
-              <span key={tag}>{tag}</span>
-            ))}
-          </div>
-        </>
-      ) : (
-        <p>先留下第一条记录，我会帮你把它整理成能回看的线索。</p>
-      )}
-    </div>
   )
 }
 

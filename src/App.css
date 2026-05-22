@@ -1,7 +1,7 @@
 .app-shell {
   min-height: 100svh;
   display: grid;
-  grid-template-columns: 236px minmax(0, 1fr) 320px;
+  grid-template-columns: 236px minmax(0, 1fr);
   background:
     linear-gradient(140deg, rgba(47, 154, 143, 0.08), transparent 34%),
     linear-gradient(40deg, rgba(228, 109, 88, 0.08), transparent 30%),
@@ -122,13 +122,6 @@ button:disabled {
   padding: 28px;
 }
 
-.companion-rail {
-  position: sticky;
-  top: 0;
-  height: 100svh;
-  padding: 28px 24px 28px 0;
-}
-
 .section-header {
   display: flex;
   justify-content: space-between;
@@ -197,7 +190,6 @@ button:disabled {
 .day-panel,
 .settings-block,
 .chat-window,
-.companion-card,
 .entry-card,
 .training-panel {
   border: 1px solid var(--line);
@@ -356,7 +348,6 @@ select {
 
 .after-save p,
 .settings-block p,
-.companion-card p,
 .entry-card p,
 .empty-state p,
 .message p {
@@ -645,6 +636,41 @@ select {
   gap: 12px;
 }
 
+.persona-picker {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.persona-option {
+  min-height: 86px;
+  display: grid;
+  gap: 5px;
+  align-content: start;
+  text-align: left;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--soft-ink);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.persona-option strong {
+  color: var(--ink);
+}
+
+.persona-option span {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.persona-option.active {
+  border-color: var(--teal);
+  background: rgba(47, 154, 143, 0.1);
+  box-shadow: 0 0 0 3px rgba(47, 154, 143, 0.12);
+}
+
 .message {
   max-width: 78%;
   display: flex;
@@ -758,36 +784,6 @@ select {
   color: #943528 !important;
 }
 
-.companion-card {
-  padding: 18px;
-  min-height: 250px;
-}
-
-.companion-title {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-bottom: 14px;
-}
-
-.companion-title svg {
-  color: var(--coral);
-}
-
-.mini-stat {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 18px;
-  padding: 12px;
-  border-radius: 8px;
-  background: var(--surface-soft);
-}
-
-.mini-stat span {
-  color: var(--muted);
-}
-
 .toast {
   position: fixed;
   left: 50%;
@@ -811,10 +807,6 @@ select {
 @media (max-width: 1120px) {
   .app-shell {
     grid-template-columns: 210px minmax(0, 1fr);
-  }
-
-  .companion-rail {
-    display: none;
   }
 
   .record-layout,
@@ -855,10 +847,9 @@ select {
   .record-composer,
   .record-side,
   .day-panel,
-  .settings-block,
-  .chat-window,
-  .companion-card,
-  .entry-card,
+    .settings-block,
+    .chat-window,
+    .entry-card,
   .training-panel {
     box-shadow: none;
   }
@@ -869,6 +860,10 @@ select {
 
   .cloud-auth {
     grid-template-columns: 1fr;
+  }
+
+  .persona-picker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .calendar-grid {
