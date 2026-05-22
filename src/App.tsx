@@ -6,12 +6,13 @@ import {
   createEntry,
   filterEntries,
   loadEntries,
+  mergeEntries,
   saveEntries,
   toDateKey,
   trainingTracks,
 } from './domain'
 import type { Entry, EntryType, TrainingTrackName } from './domain'
-import { getCloudVideoUrl, uploadVideoBlob, upsertCloudEntry } from './cloudSync'
+import { fetchCloudEntries, getCloudVideoUrl, uploadVideoBlob, upsertCloudEntry } from './cloudSync'
 import { hasSupabaseConfig, supabase } from './supabaseClient'
 import { clearVideoBlobs } from './videoStore'
 
@@ -62,6 +63,40 @@ function App() {
   useEffect(() => {
     saveEntries(entries)
   }, [entries])
+
+  useEffect(() => {
+    if (!supabase) return
+
+    let isMounted = true
+
+    async function loadCloudEntries() {
+      try {
+        const cloudEntries = await fetchCloudEntries()
+        if (!isMounted) return
+        setEntries((current) => mergeEntries(current, cloudEntries))
+        if (cloudEntries.length > 0) {
+          setStatus(`已从 Supabase 读取 ${cloudEntries.length} 条记录。`)
+        }
+      } catch {
+        if (isMounted) setStatus('读取 Supabase 记录失败，请稍后刷新重试。')
+      }
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) loadCloudEntries()
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) loadCloudEntries()
+    })
+
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
 
   const selectedEntry = entries.find((entry) => entry.id === selectedEntryId) ?? entries[0]
   const sortedEntries = useMemo(
