@@ -1,4 +1,4 @@
-const dashscopeBaseUrl = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+const dashscopeBaseUrl = process.env.DASHSCOPE_BASE_URL ?? 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
 const maxEntries = 500
 const maxDiaryContextLength = 28000
 const maxRecentMessages = 12
@@ -71,7 +71,7 @@ export default async function handler(request, response) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: process.env.DASHSCOPE_MODEL ?? 'qwen-plus',
+        model: process.env.DASHSCOPE_MODEL ?? 'qwen3.6-plus',
         messages: modelMessages,
         temperature: 0.7,
       }),
