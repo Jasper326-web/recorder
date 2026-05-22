@@ -624,7 +624,13 @@ function SettingsView({
     setIsSyncing(true)
     setCloudMessage('')
     try {
-      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password })
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
+      })
       if (error) throw error
       setCloudMessage(data.session ? '注册并登录成功。' : '注册成功。如果 Supabase 要求确认邮件，请先去邮箱点确认链接。')
     } catch (error) {
