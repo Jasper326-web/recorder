@@ -64,36 +64,33 @@ export default async function handler(request, response) {
     const entries = await fetchDiaryEntries({ supabaseUrl, supabaseKey, accessToken })
     const diaryContext = buildDiaryContext(entries)
     const mediaItems = await buildMediaItems({ entries, supabaseUrl, supabaseKey, accessToken })
-    const modelMessages = buildModelMessages({ diaryContext, mediaItems, messages, persona })
+    let reply = ''
 
-    const dashscopeResponse = await fetch(`${dashscopeBaseUrl}/services/aigc/multimodal-generation/generation`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${dashscopeApiKey}`,
-        'X-DashScope-OssResourceResolve': 'enable',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: process.env.DASHSCOPE_MODEL ?? 'qwen3.6-plus',
-        input: {
-          messages: modelMessages,
-        },
-        parameters: {
-          temperature: 0.7,
-        },
-      }),
-    })
-
-    const dashscopePayload = await dashscopeResponse.json().catch(() => null)
-
-    if (!dashscopeResponse.ok) {
-      response.status(502).json({
-        error: dashscopePayload?.error?.message ?? '心灵小蜜暂时没有连上 AI 服务。',
-      })
-      return
+    if (mediaItems.length > 0) {
+      try {
+        const multimodalPayload = await callDashscopeMultimodal({
+          apiKey: dashscopeApiKey,
+          diaryContext,
+          mediaItems,
+          messages,
+          persona,
+        })
+        reply = readDashscopeReply(multimodalPayload)
+      } catch (error) {
+        console.warn('DashScope multimodal request failed, falling back to text-only context.', error)
+      }
     }
 
-    const reply = readDashscopeReply(dashscopePayload)
+    if (!reply) {
+      const textPayload = await callDashscopeText({
+        apiKey: dashscopeApiKey,
+        diaryContext,
+        messages,
+        persona,
+      })
+      reply = readDashscopeReply(textPayload)
+    }
+
     if (!reply) {
       response.status(502).json({ error: 'AI 没有返回有效内容。' })
       return
@@ -107,10 +104,71 @@ export default async function handler(request, response) {
       diaryCount: entries.length,
     })
   } catch (error) {
-    response.status(500).json({
+    response.status(error?.statusCode ?? 500).json({
       error: error instanceof Error ? error.message : '心灵小蜜出错了。',
     })
   }
+}
+
+async function callDashscopeMultimodal({ apiKey, diaryContext, mediaItems, messages, persona }) {
+  const payload = await postDashscope({
+    apiKey,
+    endpoint: '/services/aigc/multimodal-generation/generation',
+    body: {
+      model: process.env.DASHSCOPE_MULTIMODAL_MODEL ?? 'qwen3-vl-plus',
+      input: {
+        messages: buildMultimodalModelMessages({ diaryContext, mediaItems, messages, persona }),
+      },
+      parameters: {
+        temperature: 0.7,
+      },
+    },
+    extraHeaders: {
+      'X-DashScope-OssResourceResolve': 'enable',
+    },
+  })
+
+  return payload
+}
+
+async function callDashscopeText({ apiKey, diaryContext, messages, persona }) {
+  const payload = await postDashscope({
+    apiKey,
+    endpoint: '/services/aigc/text-generation/generation',
+    body: {
+      model: process.env.DASHSCOPE_MODEL ?? 'qwen3.6-plus',
+      input: {
+        messages: buildTextModelMessages({ diaryContext, messages, persona }),
+      },
+      parameters: {
+        result_format: 'message',
+        temperature: 0.7,
+      },
+    },
+  })
+
+  return payload
+}
+
+async function postDashscope({ apiKey, endpoint, body, extraHeaders = {} }) {
+  const result = await fetch(`${dashscopeBaseUrl}${endpoint}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      ...extraHeaders,
+    },
+    body: JSON.stringify(body),
+  })
+  const payload = await result.json().catch(() => null)
+
+  if (!result.ok) {
+    const error = new Error(readDashscopeError(payload))
+    error.statusCode = 502
+    throw error
+  }
+
+  return payload
 }
 
 function readBearerToken(authorization) {
@@ -253,7 +311,29 @@ function buildDiaryContext(entries) {
   return `${context.slice(0, maxDiaryContextLength)}\n\n[系统提示：日记内容较多，以上是按时间倒序截取的最近部分。]`
 }
 
-function buildModelMessages({ diaryContext, mediaItems, messages, persona }) {
+function buildTextModelMessages({ diaryContext, messages, persona }) {
+  const recentMessages = messages
+    .filter((message) => ['user', 'assistant'].includes(message?.role) && typeof message.content === 'string')
+    .slice(-maxRecentMessages)
+    .map((message) => ({
+      role: message.role,
+      content: message.content.slice(0, 4000),
+    }))
+
+  return [
+    {
+      role: 'system',
+      content: buildSystemPrompt(persona),
+    },
+    {
+      role: 'user',
+      content: ['以下是用户的日记文字上下文，按时间倒序排列：', diaryContext, '如果其中有音频/视频记录但没有转写文本，你只能使用标题、分类、标签和已有摘要，不要假装听过或看过原文件。'].join('\n'),
+    },
+    ...recentMessages,
+  ]
+}
+
+function buildMultimodalModelMessages({ diaryContext, mediaItems, messages, persona }) {
   const recentMessages = messages
     .filter((message) => ['user', 'assistant'].includes(message?.role) && typeof message.content === 'string')
     .slice(-maxRecentMessages)
@@ -271,7 +351,7 @@ function buildModelMessages({ diaryContext, mediaItems, messages, persona }) {
   return [
     {
       role: 'system',
-      content: [{ text: [`你是“心灵小蜜”的一个角色形象：「${persona.name}」。`, persona.style, '你本质上是一个温暖、清醒、具体的个人记录分析聊天助手。', '你可以基于用户 Supabase 日记库中的文字、音频、视频记录回答问题，帮助用户提升情绪控制力、生活觉知力、口才表达能力和头脑清晰度。', '回答风格：接住情绪，指出重复模式，区分事实/感受/判断，给轻量下一步。不要诊断疾病，不要说教，不要假装知道日记之外的事实。', '如果日记证据不足，要明确说明“从已有记录看”。'].join('\n') }],
+      content: [{ text: buildSystemPrompt(persona) }],
     },
     {
       role: 'user',
@@ -282,6 +362,17 @@ function buildModelMessages({ diaryContext, mediaItems, messages, persona }) {
     },
     ...recentMessages,
   ]
+}
+
+function buildSystemPrompt(persona) {
+  return [
+    `你是“心灵小蜜”的一个角色形象：「${persona.name}」。`,
+    persona.style,
+    '你本质上是一个温暖、清醒、具体的个人记录分析聊天助手。',
+    '你可以基于用户 Supabase 日记库中的文字、音频、视频记录回答问题，帮助用户提升情绪控制力、生活觉知力、口才表达能力和头脑清晰度。',
+    '回答风格：接住情绪，指出重复模式，区分事实/感受/判断，给轻量下一步。不要诊断疾病，不要说教，不要假装知道日记之外的事实。',
+    '如果日记证据不足，要明确说明“从已有记录看”。',
+  ].join('\n')
 }
 
 function readDashscopeReply(payload) {
@@ -295,6 +386,14 @@ function readDashscopeReply(payload) {
       .trim()
   }
   return ''
+}
+
+function readDashscopeError(payload) {
+  if (!payload) return '心灵小蜜暂时没有连上 AI 服务。'
+  const message = payload?.error?.message ?? payload?.message ?? payload?.msg ?? '心灵小蜜暂时没有连上 AI 服务。'
+  const code = payload?.error?.code ?? payload?.code
+  const requestId = payload?.request_id ?? payload?.requestId
+  return [code ? `DashScope ${code}` : '', message, requestId ? `request_id: ${requestId}` : ''].filter(Boolean).join(' | ')
 }
 
 function formatEntryType(type) {
