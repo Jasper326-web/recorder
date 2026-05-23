@@ -12,7 +12,7 @@ import {
   trainingTracks,
 } from './domain'
 import type { Entry, EntryType, TrainingTrackName } from './domain'
-import { fetchCloudEntries, getCloudVideoUrl, uploadVideoBlob, upsertCloudEntry } from './cloudSync'
+import { fetchCloudEntries, getCloudMediaUrl, uploadMediaBlob, upsertCloudEntry } from './cloudSync'
 import { hasSupabaseConfig, supabase } from './supabaseClient'
 import { clearVideoBlobs } from './videoStore'
 
@@ -65,6 +65,7 @@ type IconName =
   | 'home'
   | 'list'
   | 'mic'
+  | 'music'
   | 'play'
   | 'plus'
   | 'search'
@@ -251,6 +252,19 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
     }
   }
 
+  async function startAudio() {
+    setError('')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      })
+      streamRef.current = stream
+      setCameraReady(true)
+    } catch {
+      setError('无法打开麦克风。请检查浏览器权限，已输入的文字不会丢失。')
+    }
+  }
+
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop())
     streamRef.current = null
@@ -259,17 +273,18 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
 
   function startRecording() {
     if (!streamRef.current) {
-      setError('请先打开摄像头。')
+      setError(type === 'audio' ? '请先打开麦克风。' : '请先打开摄像头。')
       return
     }
     chunksRef.current = []
-    const recorder = new MediaRecorder(streamRef.current)
+    const mimeType = getPreferredRecordingMimeType(type)
+    const recorder = new MediaRecorder(streamRef.current, mimeType ? { mimeType } : undefined)
     recorderRef.current = recorder
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) chunksRef.current.push(event.data)
     }
     recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: 'video/webm' })
+      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mimeType || (type === 'audio' ? 'audio/webm' : 'video/webm') })
       if (recordedUrl) URL.revokeObjectURL(recordedUrl)
       setRecordedBlob(blob)
       setRecordedUrl(URL.createObjectURL(blob))
@@ -294,6 +309,10 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
       setError('视频记录需要先完成一段录制。')
       return
     }
+    if (type === 'audio' && !recordedBlob) {
+      setError('音频记录需要先完成一段录制。')
+      return
+    }
     if (!supabase) {
       setError('还没有配置 Supabase，暂时不能上传记录。')
       return
@@ -313,7 +332,7 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
         type,
         bodyText,
       })
-      const videoBlobRef = type === 'video' && recordedBlob ? await uploadVideoBlob(baseEntry.id, userId, recordedBlob) : undefined
+      const videoBlobRef = type !== 'text' && recordedBlob ? await uploadMediaBlob(baseEntry.id, userId, recordedBlob, type) : undefined
       const entry = videoBlobRef ? { ...baseEntry, videoBlobRef } : baseEntry
 
       await upsertCloudEntry(entry, userId)
@@ -346,6 +365,10 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
             <Icon name="video" size={18} />
             视频
           </button>
+          <button className={type === 'audio' ? 'active' : ''} onClick={() => setType('audio')} type="button">
+            <Icon name="music" size={18} />
+            音频
+          </button>
         </div>
       </header>
 
@@ -361,7 +384,7 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
                 value={bodyText}
               />
             </label>
-          ) : (
+          ) : type === 'video' ? (
             <div className="video-recorder">
               <div className="camera-frame">
                 {recordedUrl ? (
@@ -391,6 +414,27 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
                 </button>
               </div>
             </div>
+          ) : (
+            <div className="audio-recorder">
+              <div className="audio-frame">
+                <Icon name="music" size={34} />
+                {recordedUrl ? <audio controls src={recordedUrl} /> : <span>打开麦克风，录一段声音记录。</span>}
+              </div>
+              <div className="recorder-actions">
+                <button onClick={startAudio} type="button">
+                  <Icon name="mic" size={17} />
+                  打开麦克风
+                </button>
+                <button disabled={!cameraReady || isRecording} onClick={startRecording} type="button">
+                  <Icon name="mic" size={17} />
+                  开始录制
+                </button>
+                <button className="danger-soft" disabled={!isRecording} onClick={stopRecording} type="button">
+                  <Icon name="square" size={17} />
+                  停止
+                </button>
+              </div>
+            </div>
           )}
 
           {error && <p className="form-error">{error}</p>}
@@ -402,6 +446,15 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
       </form>
     </section>
   )
+}
+
+function getPreferredRecordingMimeType(type: EntryType) {
+  const candidates =
+    type === 'audio'
+      ? ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
+      : ['video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4']
+
+  return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate)) ?? ''
 }
 
 function CalendarView({ entries, onSelectEntry }: { entries: Entry[]; onSelectEntry: (id: string) => void }) {
@@ -498,6 +551,7 @@ function ListView({ entries, onSelectEntry }: { entries: Entry[]; onSelectEntry:
           <option value="all">全部类型</option>
           <option value="text">文字</option>
           <option value="video">视频</option>
+          <option value="audio">音频</option>
         </select>
         <select onChange={(event) => setCategory(event.target.value as TrainingTrackName | 'all')} value={category}>
           <option value="all">全部训练目标</option>
@@ -825,10 +879,10 @@ function EntryCard({ entry, onSelect }: { entry: Entry; onSelect: (id: string) =
           <strong>{entry.title}</strong>
           <span>{new Date(entry.createdAt).toLocaleString('zh-CN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
         </div>
-        <span className="entry-type">{entry.type === 'video' ? '视频' : '文字'}</span>
+        <span className="entry-type">{entry.type === 'video' ? '视频' : entry.type === 'audio' ? '音频' : '文字'}</span>
       </div>
       <p>{entry.aiSummary}</p>
-      {entry.type === 'video' && entry.videoBlobRef && <VideoPlayback videoBlobRef={entry.videoBlobRef} />}
+      {entry.type !== 'text' && entry.videoBlobRef && <MediaPlayback entry={entry} />}
       <div className="chip-row">
         <span>{entry.category}</span>
         {entry.tags.slice(0, 4).map((tag) => (
@@ -839,18 +893,19 @@ function EntryCard({ entry, onSelect }: { entry: Entry; onSelect: (id: string) =
   )
 }
 
-function VideoPlayback({ videoBlobRef }: { videoBlobRef: string }) {
+function MediaPlayback({ entry }: { entry: Entry }) {
   const [url, setUrl] = useState('')
 
   useEffect(() => {
     let isMounted = true
-    getCloudVideoUrl(videoBlobRef).then((signedUrl) => {
+    if (!entry.videoBlobRef) return undefined
+    getCloudMediaUrl(entry.videoBlobRef, entry.type).then((signedUrl) => {
       if (signedUrl && isMounted) setUrl(signedUrl)
     })
     return () => {
       isMounted = false
     }
-  }, [videoBlobRef])
+  }, [entry.videoBlobRef, entry.type])
 
   if (!url) {
     return (
@@ -861,7 +916,7 @@ function VideoPlayback({ videoBlobRef }: { videoBlobRef: string }) {
     )
   }
 
-  return <video className="entry-video" controls src={url} />
+  return entry.type === 'audio' ? <audio className="entry-audio" controls src={url} /> : <video className="entry-video" controls src={url} />
 }
 
 function EmptyState({ text }: { text: string }) {
@@ -919,6 +974,7 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
         <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
       </>
     ),
+    music: <path d="M9 18V6l10-2v12M9 10l10-2M6 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM16 20a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />,
     play: (
       <>
         <circle cx="12" cy="12" r="9" />

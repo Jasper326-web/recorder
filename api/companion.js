@@ -1,7 +1,8 @@
-const dashscopeBaseUrl = process.env.DASHSCOPE_BASE_URL ?? 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
+const dashscopeBaseUrl = process.env.DASHSCOPE_BASE_URL ?? 'https://dashscope.aliyuncs.com/api/v1'
 const maxEntries = 500
 const maxDiaryContextLength = 28000
 const maxRecentMessages = 12
+const maxMediaEntries = 6
 
 const personaPrompts = {
   gentle: {
@@ -62,18 +63,24 @@ export default async function handler(request, response) {
 
     const entries = await fetchDiaryEntries({ supabaseUrl, supabaseKey, accessToken })
     const diaryContext = buildDiaryContext(entries)
-    const modelMessages = buildModelMessages({ diaryContext, messages, persona })
+    const mediaItems = await buildMediaItems({ entries, supabaseUrl, supabaseKey, accessToken })
+    const modelMessages = buildModelMessages({ diaryContext, mediaItems, messages, persona })
 
-    const dashscopeResponse = await fetch(`${dashscopeBaseUrl}/chat/completions`, {
+    const dashscopeResponse = await fetch(`${dashscopeBaseUrl}/services/aigc/multimodal-generation/generation`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${dashscopeApiKey}`,
+        'X-DashScope-OssResourceResolve': 'enable',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model: process.env.DASHSCOPE_MODEL ?? 'qwen3.6-plus',
-        messages: modelMessages,
-        temperature: 0.7,
+        input: {
+          messages: modelMessages,
+        },
+        parameters: {
+          temperature: 0.7,
+        },
       }),
     })
 
@@ -86,7 +93,7 @@ export default async function handler(request, response) {
       return
     }
 
-    const reply = dashscopePayload?.choices?.[0]?.message?.content?.trim()
+    const reply = readDashscopeReply(dashscopePayload)
     if (!reply) {
       response.status(502).json({ error: 'AI 没有返回有效内容。' })
       return
@@ -128,7 +135,7 @@ async function readJsonBody(request) {
 
 async function fetchDiaryEntries({ supabaseUrl, supabaseKey, accessToken }) {
   const url = new URL('/rest/v1/entries', supabaseUrl)
-  url.searchParams.set('select', 'created_at,type,prompt_answers,body_text,title,category,tags,ai_summary,ai_reflection')
+  url.searchParams.set('select', 'created_at,type,prompt_answers,body_text,video_blob_ref,title,category,tags,ai_summary,ai_reflection')
   url.searchParams.set('order', 'created_at.desc')
   url.searchParams.set('limit', String(maxEntries))
 
@@ -145,6 +152,56 @@ async function fetchDiaryEntries({ supabaseUrl, supabaseKey, accessToken }) {
   }
 
   return Array.isArray(payload) ? payload : []
+}
+
+async function buildMediaItems({ entries, supabaseUrl, supabaseKey, accessToken }) {
+  const mediaEntries = entries
+    .filter((entry) => ['video', 'audio'].includes(entry.type) && entry.video_blob_ref)
+    .slice(0, maxMediaEntries)
+  const mediaItems = []
+
+  for (const entry of mediaEntries) {
+    const url = await createSignedMediaUrl({
+      accessToken,
+      path: entry.video_blob_ref,
+      supabaseKey,
+      supabaseUrl,
+      type: entry.type,
+    })
+    if (!url) continue
+
+    mediaItems.push({
+      createdAt: entry.created_at,
+      title: entry.title,
+      type: entry.type,
+      url,
+    })
+  }
+
+  return mediaItems
+}
+
+async function createSignedMediaUrl({ accessToken, path, supabaseKey, supabaseUrl, type }) {
+  const buckets = type === 'video' ? ['entry-media', 'entry-videos'] : ['entry-media']
+
+  for (const bucket of buckets) {
+    const url = new URL(`/storage/v1/object/sign/${bucket}/${path}`, supabaseUrl)
+    const result = await fetch(url, {
+      method: 'POST',
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ expiresIn: 60 * 30 }),
+    })
+    const payload = await result.json().catch(() => null)
+    if (result.ok && payload?.signedURL) {
+      return new URL(payload.signedURL, supabaseUrl).toString()
+    }
+  }
+
+  return ''
 }
 
 async function saveCompanionMessage({ supabaseUrl, supabaseKey, accessToken, role, content }) {
@@ -175,7 +232,7 @@ function buildDiaryContext(entries) {
     const tags = Array.isArray(entry.tags) ? entry.tags.join('、') : ''
 
     return [
-      `#${index + 1} ${formatDate(entry.created_at)} ${entry.type === 'video' ? '视频记录' : '文字记录'}`,
+      `#${index + 1} ${formatDate(entry.created_at)} ${formatEntryType(entry.type)}`,
       `标题：${entry.title ?? ''}`,
       `训练目标：${entry.category ?? ''}`,
       tags ? `标签：${tags}` : '',
@@ -196,32 +253,54 @@ function buildDiaryContext(entries) {
   return `${context.slice(0, maxDiaryContextLength)}\n\n[系统提示：日记内容较多，以上是按时间倒序截取的最近部分。]`
 }
 
-function buildModelMessages({ diaryContext, messages, persona }) {
+function buildModelMessages({ diaryContext, mediaItems, messages, persona }) {
   const recentMessages = messages
     .filter((message) => ['user', 'assistant'].includes(message?.role) && typeof message.content === 'string')
     .slice(-maxRecentMessages)
     .map((message) => ({
       role: message.role,
-      content: message.content.slice(0, 4000),
+      content: [{ text: message.content.slice(0, 4000) }],
     }))
+  const mediaContent = mediaItems.flatMap((item) => [
+    {
+      text: `${item.type === 'audio' ? '音频记录' : '视频记录'}：${item.title || '无标题'}，时间：${formatDate(item.createdAt)}`,
+    },
+    item.type === 'audio' ? { audio: item.url } : { video: [item.url] },
+  ])
 
   return [
     {
       role: 'system',
+      content: [{ text: [`你是“心灵小蜜”的一个角色形象：「${persona.name}」。`, persona.style, '你本质上是一个温暖、清醒、具体的个人记录分析聊天助手。', '你可以基于用户 Supabase 日记库中的文字、音频、视频记录回答问题，帮助用户提升情绪控制力、生活觉知力、口才表达能力和头脑清晰度。', '回答风格：接住情绪，指出重复模式，区分事实/感受/判断，给轻量下一步。不要诊断疾病，不要说教，不要假装知道日记之外的事实。', '如果日记证据不足，要明确说明“从已有记录看”。'].join('\n') }],
+    },
+    {
+      role: 'user',
       content: [
-        `你是“心灵小蜜”的一个角色形象：「${persona.name}」。`,
-        persona.style,
-        '你本质上是一个温暖、清醒、具体的个人记录分析聊天助手。',
-        '你可以基于用户 Supabase 日记库中的记录回答问题，帮助用户提升情绪控制力、生活觉知力、口才表达能力和头脑清晰度。',
-        '回答风格：接住情绪，指出重复模式，区分事实/感受/判断，给轻量下一步。不要诊断疾病，不要说教，不要假装知道日记之外的事实。',
-        '如果日记证据不足，要明确说明“从已有记录看”。',
-        '',
-        '以下是用户的日记上下文，按时间倒序排列：',
-        diaryContext,
-      ].join('\n'),
+        { text: ['以下是用户的日记文字上下文，按时间倒序排列：', diaryContext, mediaContent.length ? '下面还附上最近的音频/视频记录，请结合内容理解。' : '目前没有可供模型读取的音频或视频记录。'].join('\n') },
+        ...mediaContent,
+      ],
     },
     ...recentMessages,
   ]
+}
+
+function readDashscopeReply(payload) {
+  const content = payload?.output?.choices?.[0]?.message?.content
+  if (typeof content === 'string') return content.trim()
+  if (Array.isArray(content)) {
+    return content
+      .map((item) => item?.text ?? '')
+      .filter(Boolean)
+      .join('\n')
+      .trim()
+  }
+  return ''
+}
+
+function formatEntryType(type) {
+  if (type === 'video') return '视频记录'
+  if (type === 'audio') return '音频记录'
+  return '文字记录'
 }
 
 function formatDate(value) {

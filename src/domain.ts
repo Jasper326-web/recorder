@@ -1,4 +1,4 @@
-export type EntryType = 'text' | 'video'
+export type EntryType = 'text' | 'video' | 'audio'
 
 export type TrainingTrackName =
   | '情绪控制力'
@@ -133,7 +133,7 @@ export function analyzeEntry(entry: Entry): {
   return {
     category,
     tags,
-    summary: `你记录到：${entry.promptAnswers.event || entry.bodyText || '此刻有一些值得被看见的东西'}。这条记录主要在训练「${category}」。`,
+    summary: `你记录到：${entry.promptAnswers.event || entry.bodyText || (entry.type === 'audio' ? '一段音频记录' : '此刻有一些值得被看见的东西')}。这条记录主要在训练「${category}」。`,
     reflection: `心灵小蜜在这里。你已经把模糊的感受放到了明处，这本身就在增加掌控感。接下来可以很小地做一步：${nextAction}。`,
   }
 }
@@ -262,7 +262,7 @@ function inferTags(draft: Pick<EntryDraft, 'promptAnswers' | 'bodyText'>, catego
 }
 
 function buildTitle(draft: Pick<EntryDraft, 'bodyText' | 'promptAnswers' | 'type'>) {
-  const source = draft.bodyText || draft.promptAnswers?.event || draft.promptAnswers?.state || (draft.type === 'video' ? '一段视频记录' : '一条文字记录')
+  const source = draft.bodyText || draft.promptAnswers?.event || draft.promptAnswers?.state || (draft.type === 'video' ? '一段视频记录' : draft.type === 'audio' ? '一段音频记录' : '一条文字记录')
   return source.replace(/\s+/g, ' ').slice(0, 22)
 }
 

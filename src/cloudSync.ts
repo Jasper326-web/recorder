@@ -1,7 +1,8 @@
 import type { Entry, EntryType, PromptAnswers, TrainingTrackName } from './domain'
 import { supabase } from './supabaseClient'
 
-const videoBucket = 'entry-videos'
+const mediaBucket = 'entry-media'
+const legacyVideoBucket = 'entry-videos'
 
 type EntryRow = {
   id: string
@@ -47,14 +48,14 @@ export async function upsertCloudEntry(entry: Entry, userId: string) {
   await upsertCloudEntries([entry], userId)
 }
 
-export async function uploadVideoBlob(entryId: string, userId: string, blob: Blob) {
+export async function uploadMediaBlob(entryId: string, userId: string, blob: Blob, type: Exclude<EntryType, 'text'>) {
   if (!supabase) throw new Error('还没有配置 Supabase 环境变量。')
 
-  const extension = blob.type.includes('mp4') ? 'mp4' : 'webm'
+  const extension = getMediaExtension(blob.type, type)
   const path = `${userId}/${entryId}.${extension}`
-  const { error } = await supabase.storage.from(videoBucket).upload(path, blob, {
+  const { error } = await supabase.storage.from(mediaBucket).upload(path, blob, {
     cacheControl: '3600',
-    contentType: blob.type || 'video/webm',
+    contentType: blob.type || (type === 'audio' ? 'audio/webm' : 'video/webm'),
     upsert: true,
   })
 
@@ -63,13 +64,28 @@ export async function uploadVideoBlob(entryId: string, userId: string, blob: Blo
   return path
 }
 
-export async function getCloudVideoUrl(path: string) {
+export async function getCloudMediaUrl(path: string, type: EntryType) {
   if (!supabase) return ''
 
-  const { data, error } = await supabase.storage.from(videoBucket).createSignedUrl(path, 60 * 60)
-  if (error) return ''
+  const { data, error } = await supabase.storage.from(mediaBucket).createSignedUrl(path, 60 * 60)
+  if (!error) return data.signedUrl
 
-  return data.signedUrl
+  if (type === 'video') {
+    const legacy = await supabase.storage.from(legacyVideoBucket).createSignedUrl(path, 60 * 60)
+    if (!legacy.error) return legacy.data.signedUrl
+  }
+
+  return ''
+}
+
+function getMediaExtension(mimeType: string, type: Exclude<EntryType, 'text'>) {
+  if (mimeType.includes('mp4')) return 'mp4'
+  if (mimeType.includes('quicktime')) return 'mov'
+  if (mimeType.includes('mpeg')) return 'mp3'
+  if (mimeType.includes('wav')) return 'wav'
+  if (mimeType.includes('aac')) return 'aac'
+  if (mimeType.includes('ogg')) return 'ogg'
+  return type === 'audio' ? 'webm' : 'webm'
 }
 
 function entryToRow(entry: Entry, userId: string): EntryRow {
