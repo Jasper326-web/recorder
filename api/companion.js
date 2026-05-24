@@ -63,7 +63,9 @@ export default async function handler(request, response) {
 
     const entries = await fetchDiaryEntries({ supabaseUrl, supabaseKey, accessToken })
     const diaryContext = buildDiaryContext(entries)
-    const mediaItems = await buildMediaItems({ entries, supabaseUrl, supabaseKey, accessToken })
+    const mediaItems = shouldAttachMediaContext()
+      ? await buildMediaItems({ entries, supabaseUrl, supabaseKey, accessToken })
+      : []
     let reply = ''
 
     if (mediaItems.length > 0) {
@@ -169,6 +171,10 @@ async function postDashscope({ apiKey, endpoint, body, extraHeaders = {} }) {
   }
 
   return payload
+}
+
+function shouldAttachMediaContext() {
+  return process.env.DASHSCOPE_ENABLE_MEDIA_CONTEXT === 'true'
 }
 
 function readBearerToken(authorization) {
