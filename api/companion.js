@@ -1,8 +1,8 @@
 const dashscopeBaseUrl = process.env.DASHSCOPE_BASE_URL ?? 'https://dashscope.aliyuncs.com/api/v1'
+const dashscopeEndpoint = '/services/aigc/multimodal-generation/generation'
 const maxEntries = 500
 const maxDiaryContextLength = 28000
 const maxRecentMessages = 12
-const maxMediaEntries = 6
 
 const personaPrompts = {
   gentle: {
@@ -63,35 +63,13 @@ export default async function handler(request, response) {
 
     const entries = await fetchDiaryEntries({ supabaseUrl, supabaseKey, accessToken })
     const diaryContext = buildDiaryContext(entries)
-    const mediaItems = shouldAttachMediaContext()
-      ? await buildMediaItems({ entries, supabaseUrl, supabaseKey, accessToken })
-      : []
-    let reply = ''
-
-    if (mediaItems.length > 0) {
-      try {
-        const multimodalPayload = await callDashscopeMultimodal({
-          apiKey: dashscopeApiKey,
-          diaryContext,
-          mediaItems,
-          messages,
-          persona,
-        })
-        reply = readDashscopeReply(multimodalPayload)
-      } catch (error) {
-        console.warn('DashScope multimodal request failed, falling back to text-only context.', error)
-      }
-    }
-
-    if (!reply) {
-      const textPayload = await callDashscopeText({
-        apiKey: dashscopeApiKey,
-        diaryContext,
-        messages,
-        persona,
-      })
-      reply = readDashscopeReply(textPayload)
-    }
+    const dashscopePayload = await callDashscopeTextOnly({
+      apiKey: dashscopeApiKey,
+      diaryContext,
+      messages,
+      persona,
+    })
+    const reply = readDashscopeReply(dashscopePayload)
 
     if (!reply) {
       response.status(502).json({ error: 'AI 没有返回有效内容。' })
@@ -112,55 +90,22 @@ export default async function handler(request, response) {
   }
 }
 
-async function callDashscopeMultimodal({ apiKey, diaryContext, mediaItems, messages, persona }) {
-  const payload = await postDashscope({
-    apiKey,
-    endpoint: '/services/aigc/multimodal-generation/generation',
-    body: {
-      model: process.env.DASHSCOPE_MULTIMODAL_MODEL ?? 'qwen3-vl-plus',
-      input: {
-        messages: buildMultimodalModelMessages({ diaryContext, mediaItems, messages, persona }),
-      },
-      parameters: {
-        temperature: 0.7,
-      },
-    },
-    extraHeaders: {
-      'X-DashScope-OssResourceResolve': 'enable',
-    },
-  })
-
-  return payload
-}
-
-async function callDashscopeText({ apiKey, diaryContext, messages, persona }) {
-  const payload = await postDashscope({
-    apiKey,
-    endpoint: '/services/aigc/text-generation/generation',
-    body: {
-      model: process.env.DASHSCOPE_MODEL ?? 'qwen3.6-plus',
-      input: {
-        messages: buildTextModelMessages({ diaryContext, messages, persona }),
-      },
-      parameters: {
-        result_format: 'message',
-        temperature: 0.7,
-      },
-    },
-  })
-
-  return payload
-}
-
-async function postDashscope({ apiKey, endpoint, body, extraHeaders = {} }) {
-  const result = await fetch(`${dashscopeBaseUrl}${endpoint}`, {
+async function callDashscopeTextOnly({ apiKey, diaryContext, messages, persona }) {
+  const result = await fetch(`${dashscopeBaseUrl}${dashscopeEndpoint}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
-      ...extraHeaders,
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      model: process.env.DASHSCOPE_MODEL ?? 'qwen-plus',
+      input: {
+        messages: buildModelMessages({ diaryContext, messages, persona }),
+      },
+      parameters: {
+        result_format: 'message',
+      },
+    }),
   })
   const payload = await result.json().catch(() => null)
 
@@ -171,10 +116,6 @@ async function postDashscope({ apiKey, endpoint, body, extraHeaders = {} }) {
   }
 
   return payload
-}
-
-function shouldAttachMediaContext() {
-  return process.env.DASHSCOPE_ENABLE_MEDIA_CONTEXT === 'true'
 }
 
 function readBearerToken(authorization) {
@@ -199,7 +140,7 @@ async function readJsonBody(request) {
 
 async function fetchDiaryEntries({ supabaseUrl, supabaseKey, accessToken }) {
   const url = new URL('/rest/v1/entries', supabaseUrl)
-  url.searchParams.set('select', 'created_at,type,prompt_answers,body_text,video_blob_ref,title,category,tags,ai_summary,ai_reflection')
+  url.searchParams.set('select', 'created_at,type,prompt_answers,body_text,title,category,tags,ai_summary,ai_reflection')
   url.searchParams.set('order', 'created_at.desc')
   url.searchParams.set('limit', String(maxEntries))
 
@@ -216,56 +157,6 @@ async function fetchDiaryEntries({ supabaseUrl, supabaseKey, accessToken }) {
   }
 
   return Array.isArray(payload) ? payload : []
-}
-
-async function buildMediaItems({ entries, supabaseUrl, supabaseKey, accessToken }) {
-  const mediaEntries = entries
-    .filter((entry) => ['video', 'audio'].includes(entry.type) && entry.video_blob_ref)
-    .slice(0, maxMediaEntries)
-  const mediaItems = []
-
-  for (const entry of mediaEntries) {
-    const url = await createSignedMediaUrl({
-      accessToken,
-      path: entry.video_blob_ref,
-      supabaseKey,
-      supabaseUrl,
-      type: entry.type,
-    })
-    if (!url) continue
-
-    mediaItems.push({
-      createdAt: entry.created_at,
-      title: entry.title,
-      type: entry.type,
-      url,
-    })
-  }
-
-  return mediaItems
-}
-
-async function createSignedMediaUrl({ accessToken, path, supabaseKey, supabaseUrl, type }) {
-  const buckets = type === 'video' ? ['entry-media', 'entry-videos'] : ['entry-media']
-
-  for (const bucket of buckets) {
-    const url = new URL(`/storage/v1/object/sign/${bucket}/${path}`, supabaseUrl)
-    const result = await fetch(url, {
-      method: 'POST',
-      headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ expiresIn: 60 * 30 }),
-    })
-    const payload = await result.json().catch(() => null)
-    if (result.ok && payload?.signedURL) {
-      return new URL(payload.signedURL, supabaseUrl).toString()
-    }
-  }
-
-  return ''
 }
 
 async function saveCompanionMessage({ supabaseUrl, supabaseKey, accessToken, role, content }) {
@@ -317,29 +208,7 @@ function buildDiaryContext(entries) {
   return `${context.slice(0, maxDiaryContextLength)}\n\n[系统提示：日记内容较多，以上是按时间倒序截取的最近部分。]`
 }
 
-function buildTextModelMessages({ diaryContext, messages, persona }) {
-  const recentMessages = messages
-    .filter((message) => ['user', 'assistant'].includes(message?.role) && typeof message.content === 'string')
-    .slice(-maxRecentMessages)
-    .map((message) => ({
-      role: message.role,
-      content: message.content.slice(0, 4000),
-    }))
-
-  return [
-    {
-      role: 'system',
-      content: buildSystemPrompt(persona),
-    },
-    {
-      role: 'user',
-      content: ['以下是用户的日记文字上下文，按时间倒序排列：', diaryContext, '如果其中有音频/视频记录但没有转写文本，你只能使用标题、分类、标签和已有摘要，不要假装听过或看过原文件。'].join('\n'),
-    },
-    ...recentMessages,
-  ]
-}
-
-function buildMultimodalModelMessages({ diaryContext, mediaItems, messages, persona }) {
+function buildModelMessages({ diaryContext, messages, persona }) {
   const recentMessages = messages
     .filter((message) => ['user', 'assistant'].includes(message?.role) && typeof message.content === 'string')
     .slice(-maxRecentMessages)
@@ -347,12 +216,6 @@ function buildMultimodalModelMessages({ diaryContext, mediaItems, messages, pers
       role: message.role,
       content: [{ text: message.content.slice(0, 4000) }],
     }))
-  const mediaContent = mediaItems.flatMap((item) => [
-    {
-      text: `${item.type === 'audio' ? '音频记录' : '视频记录'}：${item.title || '无标题'}，时间：${formatDate(item.createdAt)}`,
-    },
-    item.type === 'audio' ? { audio: item.url } : { video: [item.url] },
-  ])
 
   return [
     {
@@ -362,8 +225,13 @@ function buildMultimodalModelMessages({ diaryContext, mediaItems, messages, pers
     {
       role: 'user',
       content: [
-        { text: ['以下是用户的日记文字上下文，按时间倒序排列：', diaryContext, mediaContent.length ? '下面还附上最近的音频/视频记录，请结合内容理解。' : '目前没有可供模型读取的音频或视频记录。'].join('\n') },
-        ...mediaContent,
+        {
+          text: [
+            '以下是用户的日记文字上下文，按时间倒序排列：',
+            diaryContext,
+            '当前版本只支持文字输入。对于音频或视频记录，你只能使用标题、分类、标签和已有摘要，不要假装听过或看过原文件。',
+          ].join('\n'),
+        },
       ],
     },
     ...recentMessages,
@@ -375,7 +243,7 @@ function buildSystemPrompt(persona) {
     `你是“心灵小蜜”的一个角色形象：「${persona.name}」。`,
     persona.style,
     '你本质上是一个温暖、清醒、具体的个人记录分析聊天助手。',
-    '你可以基于用户 Supabase 日记库中的文字、音频、视频记录回答问题，帮助用户提升情绪控制力、生活觉知力、口才表达能力和头脑清晰度。',
+    '你可以基于用户 Supabase 日记库中的文字记录、标题、分类、标签和摘要回答问题，帮助用户提升情绪控制力、生活觉知力、口才表达能力和头脑清晰度。',
     '回答风格：接住情绪，指出重复模式，区分事实/感受/判断，给轻量下一步。不要诊断疾病，不要说教，不要假装知道日记之外的事实。',
     '如果日记证据不足，要明确说明“从已有记录看”。',
   ].join('\n')
