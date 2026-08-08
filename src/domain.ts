@@ -1,5 +1,14 @@
 export type EntryType = 'text' | 'video' | 'audio'
 
+export type AbstinenceStatus =
+  | '想都没想'
+  | '有点念头'
+  | '念头很强'
+  | '看过片了'
+  | '上手了'
+  | '只x 没射'
+  | '破戒了'
+
 export type TrainingTrackName =
   | '情绪控制力'
   | '生活觉知力'
@@ -16,6 +25,7 @@ export type Entry = {
   id: string
   createdAt: string
   type: EntryType
+  abstinenceStatus: AbstinenceStatus
   promptAnswers: PromptAnswers
   bodyText: string
   videoBlobRef?: string
@@ -28,6 +38,7 @@ export type Entry = {
 
 export type EntryDraft = {
   type: EntryType
+  abstinenceStatus?: AbstinenceStatus
   promptAnswers?: PromptAnswers
   bodyText: string
   videoBlobRef?: string
@@ -44,6 +55,7 @@ export type CalendarDay = {
   count: number
   types: EntryType[]
   categories: TrainingTrackName[]
+  abstinenceStatus?: AbstinenceStatus
 }
 
 export type EntryFilter = {
@@ -84,6 +96,21 @@ export const trainingTracks: Array<{
   },
 ]
 
+export const abstinenceStatuses: Array<{
+  name: AbstinenceStatus
+  level: number
+  color: string
+  background: string
+}> = [
+  { name: '想都没想', level: 0, color: '#1b8a4a', background: '#d9f2e2' },
+  { name: '有点念头', level: 1, color: '#4a9a2b', background: '#e3f4d0' },
+  { name: '念头很强', level: 2, color: '#c9a227', background: '#fef3c7' },
+  { name: '看过片了', level: 3, color: '#d97706', background: '#fee0b2' },
+  { name: '上手了', level: 4, color: '#dc2626', background: '#fecaca' },
+  { name: '只x 没射', level: 5, color: '#b91c1c', background: '#fda4af' },
+  { name: '破戒了', level: 6, color: '#7f1d1d', background: '#ef4444' },
+]
+
 const trackKeywords: Record<TrainingTrackName, string[]> = {
   情绪控制力: ['烦', '焦虑', '生气', '崩', '情绪', '难受', '委屈', '压力', '控制', '消解'],
   生活觉知力: ['觉察', '生活', '身体', '散步', '睡', '吃', '关系', '感受', '意识到', '细节', '安静', '整理', '房间', '日常'],
@@ -92,6 +119,7 @@ const trackKeywords: Record<TrainingTrackName, string[]> = {
 }
 
 const entryStorageKey = 'self-recorder.entries.v1'
+const defaultAbstinenceStatus: AbstinenceStatus = '想都没想'
 
 export function createEntry(draft: EntryDraft): Entry {
   const createdAt = draft.createdAt ?? new Date()
@@ -103,6 +131,7 @@ export function createEntry(draft: EntryDraft): Entry {
     id: `entry-${createdAt.getTime()}-${Math.random().toString(16).slice(2, 8)}`,
     createdAt: createdAt.toISOString(),
     type: draft.type,
+    abstinenceStatus: draft.abstinenceStatus ?? defaultAbstinenceStatus,
     promptAnswers,
     bodyText: draft.bodyText.trim(),
     videoBlobRef: draft.videoBlobRef,
@@ -133,7 +162,7 @@ export function analyzeEntry(entry: Entry): {
   return {
     category,
     tags,
-    summary: `你记录到：${entry.promptAnswers.event || entry.bodyText || (entry.type === 'audio' ? '一段音频记录' : '此刻有一些值得被看见的东西')}。这条记录主要在训练「${category}」。`,
+    summary: `你记录到：${entry.promptAnswers.event || entry.bodyText || (entry.type === 'audio' ? '一段音频记录' : '此刻有一些值得被看见的东西')}。当天戒色状态是「${entry.abstinenceStatus}」，这条记录主要在训练「${category}」。`,
     reflection: `心灵小蜜在这里。你已经把模糊的感受放到了明处，这本身就在增加掌控感。接下来可以很小地做一步：${nextAction}。`,
   }
 }
@@ -150,6 +179,7 @@ export function buildCalendarDays(entries: Entry[], anchorDate = new Date()): Ca
     date.setDate(start.getDate() + index)
     const dateKey = toDateKey(date)
     const dayEntries = entries.filter((entry) => toDateKey(new Date(entry.createdAt)) === dateKey)
+    const abstinenceStatus = getWorstAbstinenceStatus(dayEntries)
 
     return {
       dateKey,
@@ -158,6 +188,7 @@ export function buildCalendarDays(entries: Entry[], anchorDate = new Date()): Ca
       count: dayEntries.length,
       types: unique(dayEntries.map((entry) => entry.type)),
       categories: unique(dayEntries.map((entry) => entry.category)),
+      abstinenceStatus,
     }
   })
 }
@@ -168,7 +199,7 @@ export function filterEntries(entries: Entry[], filter: EntryFilter): Entry[] {
   return entries.filter((entry) => {
     const matchesType = !filter.type || filter.type === 'all' || entry.type === filter.type
     const matchesCategory = !filter.category || filter.category === 'all' || entry.category === filter.category
-  const searchable = [entry.title, entry.bodyText, entry.promptAnswers.state, entry.promptAnswers.event, entry.promptAnswers.next, ...entry.tags]
+    const searchable = [entry.title, entry.bodyText, entry.abstinenceStatus, entry.promptAnswers.state, entry.promptAnswers.event, entry.promptAnswers.next, ...entry.tags]
       .join(' ')
       .toLowerCase()
     const matchesQuery = !query || searchable.includes(query)
@@ -184,7 +215,7 @@ export function loadEntries(): Entry[] {
     const raw = localStorage.getItem(entryStorageKey)
     if (!raw) return []
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
+    return Array.isArray(parsed) ? parsed.map(normalizeEntry) : []
   } catch {
     return []
   }
@@ -192,6 +223,10 @@ export function loadEntries(): Entry[] {
 
 export function saveEntries(entries: Entry[]) {
   localStorage.setItem(entryStorageKey, JSON.stringify(entries))
+}
+
+export function clearEntries() {
+  localStorage.removeItem(entryStorageKey)
 }
 
 export function exportEntries(entries: Entry[]) {
@@ -204,26 +239,52 @@ export function importEntries(json: string): Entry[] {
   if (!Array.isArray(entries)) {
     throw new Error('没有找到可导入的记录列表')
   }
-  return entries
+  return entries.map(normalizeEntry)
 }
 
 export function mergeEntries(localEntries: Entry[], incomingEntries: Entry[]): Entry[] {
   const byId = new Map<string, Entry>()
 
   for (const entry of incomingEntries) {
-    byId.set(entry.id, entry)
+    byId.set(entry.id, normalizeEntry(entry))
   }
 
   for (const entry of localEntries) {
     const incoming = byId.get(entry.id)
-    byId.set(entry.id, {
+    byId.set(entry.id, normalizeEntry({
       ...incoming,
       ...entry,
       videoBlobRef: entry.videoBlobRef ?? incoming?.videoBlobRef,
-    })
+    }))
   }
 
   return Array.from(byId.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+}
+
+export function getAbstinenceStatusMeta(status: AbstinenceStatus) {
+  return abstinenceStatuses.find((item) => item.name === status) ?? abstinenceStatuses[0]
+}
+
+function getWorstAbstinenceStatus(entries: Entry[]) {
+  if (entries.length === 0) return undefined
+  return entries
+    .map((entry) => normalizeAbstinenceStatus(entry.abstinenceStatus))
+    .sort((first, second) => getAbstinenceStatusMeta(second).level - getAbstinenceStatusMeta(first).level)[0]
+}
+
+function normalizeEntry(entry: Entry): Entry {
+  return {
+    ...entry,
+    abstinenceStatus: normalizeAbstinenceStatus(entry.abstinenceStatus),
+    promptAnswers: entry.promptAnswers ?? { state: '', event: '', next: '' },
+    tags: entry.tags ?? [],
+  }
+}
+
+function normalizeAbstinenceStatus(status?: string): AbstinenceStatus {
+  return abstinenceStatuses.some((item) => item.name === status)
+    ? (status as AbstinenceStatus)
+    : defaultAbstinenceStatus
 }
 
 export function toDateKey(date: Date) {

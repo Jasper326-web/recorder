@@ -340,6 +340,38 @@ select {
   font-size: 14px;
 }
 
+.status-field {
+  display: grid;
+  gap: 7px;
+}
+
+.status-field span {
+  color: var(--soft-ink);
+  font-weight: 700;
+}
+
+.status-select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+}
+
+.status-select.has-value {
+  color: var(--status-color);
+  border-color: color-mix(in srgb, var(--status-color) 34%, var(--line));
+  background: var(--status-bg);
+  font-weight: 700;
+}
+
+.status-select option {
+  color: var(--ink);
+  background: white;
+}
+
 .after-save {
   padding: 14px;
   border-radius: 8px;
@@ -369,6 +401,12 @@ select {
   color: var(--soft-ink);
   background: rgba(47, 154, 143, 0.1);
   font-size: 12px;
+}
+
+.chip-row span.abstinence-chip {
+  color: var(--status-color);
+  background: var(--status-bg);
+  font-weight: 700;
 }
 
 .video-recorder,
@@ -441,8 +479,54 @@ select {
 }
 
 .cloud-auth label {
+  position: relative;
   display: grid;
   gap: 7px;
+}
+
+.email-suggestions {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 12px 40px rgba(23, 33, 38, 0.18);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.email-suggestions button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid rgba(24, 38, 44, 0.05);
+  background: white;
+  color: var(--ink);
+  font-size: 14px;
+  text-align: left;
+  transition: background 0.12s ease;
+}
+
+.email-suggestions button:last-child {
+  border-bottom: none;
+}
+
+.email-suggestions button:hover {
+  background: var(--surface-soft);
+}
+
+.email-suggestions button::before {
+  content: '✉';
+  color: var(--teal);
+  font-size: 14px;
+  flex-shrink: 0;
 }
 
 .cloud-auth span,
@@ -479,6 +563,35 @@ select {
   border-color: rgba(228, 109, 88, 0.24) !important;
 }
 
+.status-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -8px 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--legend-bg, transparent);
+  color: var(--legend-color, var(--soft-ink));
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.legend-item i {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--legend-color, #2f9a8f);
+}
+
 .calendar-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 330px;
@@ -499,16 +612,18 @@ select {
 }
 
 .calendar-day {
+  position: relative;
   min-height: 92px;
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 6px;
   text-align: left;
-  padding: 10px;
+  padding: 10px 10px 10px 14px;
   color: var(--ink);
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.66);
+  overflow: hidden;
 }
 
 .calendar-day.muted {
@@ -519,9 +634,46 @@ select {
   background: white;
 }
 
+.calendar-day.has-status {
+  background: var(--day-status-bg, rgba(255, 255, 255, 0.66));
+  border-color: color-mix(in srgb, var(--day-status-color, #2f9a8f) 34%, var(--line));
+}
+
+.calendar-day.has-status .day-number {
+  color: var(--day-status-color, var(--ink));
+  font-weight: 800;
+}
+
 .calendar-day.selected {
   border-color: var(--teal);
   box-shadow: 0 0 0 3px rgba(47, 154, 143, 0.14);
+}
+
+.calendar-day .day-number {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.calendar-day .day-status-label {
+  color: var(--day-status-color, var(--soft-ink));
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--day-status-color, #2f9a8f) 12%, transparent);
+}
+
+.calendar-day .day-status-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--day-status-color, #2f9a8f);
+  border-radius: 8px 0 0 8px;
+  opacity: 0.85;
 }
 
 .calendar-day strong {
@@ -534,6 +686,18 @@ select {
   background: var(--coral);
   border-radius: 999px;
   font-size: 12px;
+}
+
+.calendar-day em {
+  color: var(--day-status-color);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.calendar-day.has-status strong {
+  background: var(--day-status-color);
 }
 
 .day-dots {
@@ -899,7 +1063,16 @@ select {
 
   .calendar-day {
     min-height: 66px;
-    padding: 7px;
+    padding: 7px 7px 7px 11px;
+    gap: 4px;
+  }
+
+  .calendar-day .day-status-bar {
+    width: 3px;
+  }
+
+  .calendar-day .day-status-label {
+    font-size: 10px;
   }
 
   .message {

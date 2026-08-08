@@ -1,17 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
+import type { CSSProperties, FormEvent, ReactNode } from 'react'
 import './App.css'
 import {
+  abstinenceStatuses,
   buildCalendarDays,
+  clearEntries,
   createEntry,
   filterEntries,
+  getAbstinenceStatusMeta,
   loadEntries,
   mergeEntries,
   saveEntries,
   toDateKey,
   trainingTracks,
 } from './domain'
-import type { Entry, EntryType, TrainingTrackName } from './domain'
+import type { AbstinenceStatus, Entry, EntryType, TrainingTrackName } from './domain'
+import {
+  clearLoginSession,
+  enforceLoginSessionExpiry,
+  getLoginSessionRemainingDays,
+  getLoginSessionStartedAt,
+  markLoginSession,
+  SESSION_DAYS,
+} from './authSession'
 import { fetchCloudEntries, getCloudMediaUrl, uploadMediaBlob, upsertCloudEntry } from './cloudSync'
 import { hasSupabaseConfig, supabase } from './supabaseClient'
 import { clearVideoBlobs } from './videoStore'
@@ -84,6 +95,8 @@ const navItems: Array<{ id: Tab; label: string; icon: IconName }> = [
   { id: 'settings', label: '设置', icon: 'settings' },
 ]
 
+const rememberedEmailKey = 'self-recorder.remembered-emails.v1'
+
 function App() {
   const [entries, setEntries] = useState<Entry[]>(() => loadEntries())
   const [activeTab, setActiveTab] = useState<Tab>('record')
@@ -97,6 +110,7 @@ function App() {
   useEffect(() => {
     if (!supabase) return
 
+    const client = supabase
     let isMounted = true
 
     async function loadCloudEntries() {
@@ -112,19 +126,56 @@ function App() {
       }
     }
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) loadCloudEntries()
-    })
+    async function restoreSession() {
+      const { data } = await client.auth.getSession()
+      if (!data.session) return
+
+      if (!getLoginSessionStartedAt()) {
+        markLoginSession()
+      }
+
+      const expired = await enforceLoginSessionExpiry(async () => {
+        await client.auth.signOut()
+      })
+
+      if (!isMounted) return
+
+      if (expired) {
+        setStatus(`登录已过期（${SESSION_DAYS} 天），请重新登录。`)
+        return
+      }
+
+      loadCloudEntries()
+    }
+
+    restoreSession()
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) loadCloudEntries()
+    } = client.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+          if (event === 'SIGNED_IN' || !getLoginSessionStartedAt()) {
+            markLoginSession()
+          }
+        }
+        loadCloudEntries()
+      } else if (event === 'SIGNED_OUT') {
+        clearLoginSession()
+      }
     })
+
+    function refreshSessionOnFocus() {
+      if (document.visibilityState !== 'visible') return
+      client.auth.getSession()
+    }
+
+    document.addEventListener('visibilitychange', refreshSessionOnFocus)
 
     return () => {
       isMounted = false
       subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', refreshSessionOnFocus)
     }
   }, [])
 
@@ -141,7 +192,7 @@ function App() {
   }
 
   async function clearAll() {
-    localStorage.clear()
+    clearEntries()
     await clearVideoBlobs()
     setEntries([])
     setSelectedEntryId(null)
@@ -218,6 +269,7 @@ function App() {
 
 function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
   const [type, setType] = useState<EntryType>('text')
+  const [abstinenceStatus, setAbstinenceStatus] = useState<AbstinenceStatus | ''>('')
   const [bodyText, setBodyText] = useState('')
   const [error, setError] = useState('')
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
@@ -305,6 +357,10 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
       setError('先写下一点点也可以。')
       return
     }
+    if (!abstinenceStatus) {
+      setError('请先选择今天的戒色状态。')
+      return
+    }
     if (type === 'video' && !recordedBlob) {
       setError('视频记录需要先完成一段录制。')
       return
@@ -330,6 +386,7 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
 
       const baseEntry = createEntry({
         type,
+        abstinenceStatus,
         bodyText,
       })
       const videoBlobRef = type !== 'text' && recordedBlob ? await uploadMediaBlob(baseEntry.id, userId, recordedBlob, type) : undefined
@@ -338,6 +395,7 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
       await upsertCloudEntry(entry, userId)
       onAddEntry(entry)
       setBodyText('')
+      setAbstinenceStatus('')
       setRecordedBlob(null)
       if (recordedUrl) URL.revokeObjectURL(recordedUrl)
       setRecordedUrl('')
@@ -374,6 +432,27 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
 
       <form className="record-layout" onSubmit={submitEntry}>
         <div className="record-composer">
+          <label
+            className="status-field"
+            style={abstinenceStatus ? {
+              '--status-bg': getAbstinenceStatusMeta(abstinenceStatus).background,
+              '--status-color': getAbstinenceStatusMeta(abstinenceStatus).color,
+            } as CSSProperties : undefined}
+          >
+            <span>今天的戒色状态</span>
+            <select
+              className={abstinenceStatus ? 'status-select has-value' : 'status-select'}
+              onChange={(event) => setAbstinenceStatus(event.target.value as AbstinenceStatus)}
+              required
+              value={abstinenceStatus}
+            >
+              <option disabled value="">请选择（必填）</option>
+              {abstinenceStatuses.map((status) => (
+                <option key={status.name} value={status.name}>{status.name}</option>
+              ))}
+            </select>
+          </label>
+
           {type === 'text' ? (
             <label className="field-block">
               <span>文字记录</span>
@@ -457,6 +536,31 @@ function getPreferredRecordingMimeType(type: EntryType) {
   return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate)) ?? ''
 }
 
+function loadRememberedEmails() {
+  if (typeof localStorage === 'undefined') return []
+
+  try {
+    const raw = localStorage.getItem(rememberedEmailKey)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+function saveRememberedEmail(email: string) {
+  const normalizedEmail = email.trim()
+  if (!normalizedEmail) return loadRememberedEmails()
+
+  const nextEmails = [
+    normalizedEmail,
+    ...loadRememberedEmails().filter((savedEmail) => savedEmail.toLowerCase() !== normalizedEmail.toLowerCase()),
+  ].slice(0, 6)
+
+  localStorage.setItem(rememberedEmailKey, JSON.stringify(nextEmails))
+  return nextEmails
+}
+
 function CalendarView({ entries, onSelectEntry }: { entries: Entry[]; onSelectEntry: (id: string) => void }) {
   const [anchor, setAnchor] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(toDateKey(new Date()))
@@ -487,32 +591,65 @@ function CalendarView({ entries, onSelectEntry }: { entries: Entry[]; onSelectEn
         </div>
       </header>
 
+      <div className="status-legend" role="list" aria-label="戒色状态图例">
+        {abstinenceStatuses.map((status) => (
+          <span
+            key={status.name}
+            className="legend-item"
+            role="listitem"
+            style={{
+              '--legend-color': status.color,
+              '--legend-bg': status.background,
+            } as CSSProperties}
+          >
+            <i aria-hidden="true" />
+            {status.name}
+          </span>
+        ))}
+      </div>
+
       <div className="calendar-layout">
         <div className="calendar-grid">
           {['日', '一', '二', '三', '四', '五', '六'].map((day) => (
             <span className="weekday" key={day}>{day}</span>
           ))}
-          {days.map((day) => (
-            <button
-              className={[
-                'calendar-day',
-                day.isCurrentMonth ? '' : 'muted',
-                day.count ? 'has-entry' : '',
-                selectedDate === day.dateKey ? 'selected' : '',
-              ].join(' ')}
-              key={day.dateKey}
-              onClick={() => setSelectedDate(day.dateKey)}
-              type="button"
-            >
-              <span>{day.dayNumber}</span>
-              {day.count > 0 && <strong>{day.count}</strong>}
-              <div className="day-dots">
-                {day.categories.slice(0, 3).map((category) => (
-                  <i key={category} />
-                ))}
-              </div>
-            </button>
-          ))}
+          {days.map((day) => {
+            const statusMeta = day.abstinenceStatus ? getAbstinenceStatusMeta(day.abstinenceStatus) : null
+            return (
+              <button
+                className={[
+                  'calendar-day',
+                  day.isCurrentMonth ? '' : 'muted',
+                  day.count ? 'has-entry' : '',
+                  day.abstinenceStatus ? 'has-status' : '',
+                  selectedDate === day.dateKey ? 'selected' : '',
+                ].join(' ')}
+                data-abstinence-status={day.abstinenceStatus ?? ''}
+                key={day.dateKey}
+                onClick={() => setSelectedDate(day.dateKey)}
+                type="button"
+                style={statusMeta ? {
+                  '--day-status-bg': statusMeta.background,
+                  '--day-status-color': statusMeta.color,
+                  '--day-status-level': statusMeta.level,
+                } as CSSProperties : undefined}
+              >
+                <span className="day-number">{day.dayNumber}</span>
+                {day.abstinenceStatus && (
+                  <>
+                    <em className="day-status-label">{day.abstinenceStatus}</em>
+                    <div className="day-status-bar" aria-hidden="true" />
+                  </>
+                )}
+                {day.count > 0 && <strong>{day.count}</strong>}
+                <div className="day-dots">
+                  {day.categories.slice(0, 3).map((category) => (
+                    <i key={category} />
+                  ))}
+                </div>
+              </button>
+            )
+          })}
         </div>
 
         <div className="day-panel">
@@ -722,25 +859,80 @@ function SettingsView({
   const [cloudMessage, setCloudMessage] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberedEmails, setRememberedEmails] = useState<string[]>(() => loadRememberedEmails())
   const [userEmail, setUserEmail] = useState('')
   const [isSyncing, setIsSyncing] = useState(false)
+  const emailSuggestions = useMemo(() => {
+    const query = email.trim().toLowerCase()
+    if (query.length === 0) return []
+
+    const startsWithMatches = rememberedEmails.filter((savedEmail) => {
+      const normalizedEmail = savedEmail.toLowerCase()
+      return normalizedEmail.startsWith(query) && normalizedEmail !== query
+    })
+
+    if (startsWithMatches.length > 0) return startsWithMatches
+
+    return rememberedEmails.filter((savedEmail) => {
+      const normalizedEmail = savedEmail.toLowerCase()
+      return normalizedEmail.includes(query) && normalizedEmail !== query
+    })
+  }, [email, rememberedEmails])
+  const loginSessionRemainingDays = userEmail ? getLoginSessionRemainingDays() : 0
 
   useEffect(() => {
     if (!supabase) return
 
-    supabase.auth.getSession().then(({ data }) => {
+    const client = supabase
+
+    async function restoreSettingsSession() {
+      const { data } = await client.auth.getSession()
       const user = data.session?.user
+
+      if (user) {
+        if (!getLoginSessionStartedAt()) {
+          markLoginSession()
+        }
+
+        const expired = await enforceLoginSessionExpiry(async () => {
+          await client.auth.signOut()
+        })
+
+        if (expired) {
+          setUserEmail('')
+          setCloudMessage(`登录已过期（${SESSION_DAYS} 天），请重新登录。`)
+          return
+        }
+      }
+
       setUserEmail(user?.email ?? '')
-    })
+      if (user?.email) rememberEmail(user.email)
+    }
+
+    restoreSettingsSession()
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = client.auth.onAuthStateChange((event, session) => {
       setUserEmail(session?.user.email ?? '')
+      if (session?.user.email) {
+        if (event === 'SIGNED_IN' || !getLoginSessionStartedAt()) {
+          markLoginSession()
+        }
+        rememberEmail(session.user.email)
+      } else if (event === 'SIGNED_OUT') {
+        clearLoginSession()
+      }
     })
 
     return () => subscription.unsubscribe()
   }, [])
+
+  function rememberEmail(nextEmail: string) {
+    const nextEmails = saveRememberedEmail(nextEmail)
+    setRememberedEmails(nextEmails)
+    setEmail(nextEmail)
+  }
 
   async function signUp() {
     if (!supabase) return
@@ -760,7 +952,9 @@ function SettingsView({
         },
       })
       if (error) throw error
-      setCloudMessage(data.session ? '注册并登录成功。' : '注册成功。如果 Supabase 要求确认邮件，请先去邮箱点确认链接。')
+      rememberEmail(email.trim())
+      markLoginSession()
+      setCloudMessage(data.session ? `注册并登录成功。${SESSION_DAYS} 天内无需重复登录。` : '注册成功。如果 Supabase 要求确认邮件，请先去邮箱点确认链接。')
     } catch (error) {
       setCloudMessage(error instanceof Error ? error.message : '注册失败。')
     } finally {
@@ -780,7 +974,9 @@ function SettingsView({
     try {
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
       if (error) throw error
-      setCloudMessage('登录成功。')
+      rememberEmail(email.trim())
+      markLoginSession()
+      setCloudMessage(`登录成功。${SESSION_DAYS} 天内无需重复登录。`)
     } catch (error) {
       setCloudMessage(error instanceof Error ? error.message : '登录失败。')
     } finally {
@@ -794,6 +990,7 @@ function SettingsView({
     try {
       const { error } = await supabase.auth.signOut()
       if (error) throw error
+      clearLoginSession()
       setCloudMessage('已退出登录。之后保存记录前需要重新登录。')
     } catch (error) {
       setCloudMessage(error instanceof Error ? error.message : '退出失败。')
@@ -821,6 +1018,7 @@ function SettingsView({
               <div className="sync-status">
                 <span>已登录</span>
                 <strong>{userEmail}</strong>
+                <span>登录有效期剩余 {loginSessionRemainingDays} 天（满 {SESSION_DAYS} 天后需重新登录）</span>
               </div>
               <div className="settings-actions">
                 <button className="danger-soft" disabled={isSyncing} onClick={signOut} type="button">
@@ -831,9 +1029,22 @@ function SettingsView({
           ) : (
             <>
               <div className="cloud-auth">
-                <label>
+                <label className="email-field">
                   <span>邮箱</span>
                   <input autoComplete="email" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" type="email" value={email} />
+                  {emailSuggestions.length > 0 && (
+                    <div className="email-suggestions" onMouseDown={(e) => e.preventDefault()}>
+                      {emailSuggestions.map((savedEmail) => (
+                        <button
+                          key={savedEmail}
+                          onMouseDown={() => setEmail(savedEmail)}
+                          type="button"
+                        >
+                          {savedEmail}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </label>
                 <label>
                   <span>密码</span>
@@ -884,6 +1095,10 @@ function EntryCard({ entry, onSelect }: { entry: Entry; onSelect: (id: string) =
       <p>{entry.aiSummary}</p>
       {entry.type !== 'text' && entry.videoBlobRef && <MediaPlayback entry={entry} />}
       <div className="chip-row">
+        <span className="abstinence-chip" style={{
+          '--status-bg': getAbstinenceStatusMeta(entry.abstinenceStatus).background,
+          '--status-color': getAbstinenceStatusMeta(entry.abstinenceStatus).color,
+        } as CSSProperties}>{entry.abstinenceStatus}</span>
         <span>{entry.category}</span>
         {entry.tags.slice(0, 4).map((tag) => (
           <span key={tag}>{tag}</span>

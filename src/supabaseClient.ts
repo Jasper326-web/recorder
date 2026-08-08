@@ -7,5 +7,12 @@ const supabasePublishableKey = viteEnv.VITE_SUPABASE_PUBLISHABLE_KEY
 export const hasSupabaseConfig = Boolean(supabaseUrl && supabasePublishableKey)
 
 export const supabase = hasSupabaseConfig
-  ? createClient(supabaseUrl as string, supabasePublishableKey as string)
+  ? createClient(supabaseUrl as string, supabasePublishableKey as string, {
+      auth: {
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        persistSession: true,
+        storageKey: 'self-recorder.supabase.auth',
+      },
+    })
   : null

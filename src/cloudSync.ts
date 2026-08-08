@@ -1,4 +1,4 @@
-import type { Entry, EntryType, PromptAnswers, TrainingTrackName } from './domain'
+import type { AbstinenceStatus, Entry, EntryType, PromptAnswers, TrainingTrackName } from './domain'
 import { supabase } from './supabaseClient'
 
 const mediaBucket = 'entry-media'
@@ -9,6 +9,7 @@ type EntryRow = {
   user_id: string
   created_at: string
   type: EntryType
+  abstinence_status: AbstinenceStatus | null
   prompt_answers: PromptAnswers
   body_text: string
   video_blob_ref: string | null
@@ -94,6 +95,7 @@ function entryToRow(entry: Entry, userId: string): EntryRow {
     user_id: userId,
     created_at: entry.createdAt,
     type: entry.type,
+    abstinence_status: entry.abstinenceStatus,
     prompt_answers: entry.promptAnswers,
     body_text: entry.bodyText,
     video_blob_ref: entry.videoBlobRef ?? null,
@@ -110,6 +112,7 @@ function rowToEntry(row: EntryRow): Entry {
     id: row.id,
     createdAt: row.created_at,
     type: row.type,
+    abstinenceStatus: row.abstinence_status ?? '想都没想',
     promptAnswers: row.prompt_answers,
     bodyText: row.body_text,
     videoBlobRef: row.video_blob_ref ?? undefined,
