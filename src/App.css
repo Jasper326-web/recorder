@@ -340,36 +340,286 @@ select {
   font-size: 14px;
 }
 
-.status-field {
+.status-panel {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(32, 43, 50, 0.1);
+  background: var(--surface-soft);
   display: grid;
-  gap: 7px;
+  gap: 14px;
 }
 
-.status-field span {
+.status-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.status-panel-header strong {
+  font-size: 16px;
+  color: var(--ink);
+  display: block;
+}
+
+.status-panel-header span {
+  font-size: 13px;
   color: var(--soft-ink);
-  font-weight: 700;
+  line-height: 1.5;
 }
 
-.status-select {
-  width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
+.status-clear {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--teal);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(47, 154, 143, 0.3);
+  background: white;
+  transition: background 0.15s;
+}
+
+.status-clear:hover {
+  background: rgba(47, 154, 143, 0.1);
+}
+
+.status-stage-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stage-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 2px solid var(--stage-color, var(--line));
+  background: var(--stage-bg, white);
+  color: var(--stage-color, var(--ink));
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  min-width: 88px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stage-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.stage-btn.active {
+  background: var(--stage-color, var(--teal));
+  color: white;
+  border-color: var(--stage-color, var(--teal));
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--stage-color, var(--teal)) 35%, transparent);
+  transform: translateY(-2px);
+}
+
+.stage-level-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  opacity: 0.85;
+}
+
+.stage-btn.active .stage-level-badge {
+  opacity: 0.9;
+}
+
+.stage-name {
+  font-size: 13px;
+}
+
+.intervention-panel {
+  padding: 18px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--iv-color) 35%, var(--line));
+  background: color-mix(in srgb, var(--iv-color) 6%, white);
+  display: grid;
+  gap: 16px;
+  animation: ivFadeIn 0.3s ease;
+}
+
+@keyframes ivFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.intervention-panel.level-calm {
+  border-color: color-mix(in srgb, var(--iv-color) 30%, var(--line));
+  background: color-mix(in srgb, var(--iv-color) 5%, white);
+}
+
+.intervention-panel.level-warning {
+  border-color: color-mix(in srgb, var(--iv-color) 40%, var(--line));
+  background: color-mix(in srgb, var(--iv-color) 8%, white);
+  border-width: 2px;
+}
+
+.intervention-panel.level-critical {
+  border-color: var(--iv-color);
+  background: color-mix(in srgb, var(--iv-color) 12%, white);
+  border-width: 3px;
+}
+
+.intervention-panel.level-emergency {
+  border-color: var(--iv-color);
+  background: color-mix(in srgb, var(--iv-color) 18%, #1a1a1a);
+  border-width: 3px;
+  animation: ivEmergencyPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ivEmergencyPulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--iv-color) 40%, transparent); }
+  50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--iv-color) 20%, transparent); }
+}
+
+.intervention-panel.level-emergency .iv-subtitle,
+.intervention-panel.level-emergency .iv-meaning {
+  color: color-mix(in srgb, var(--iv-color) 50%, white);
+}
+
+.iv-header {
+  display: grid;
+  gap: 4px;
+}
+
+.iv-stage-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.iv-stage-title h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--iv-color);
+}
+
+.iv-level-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--iv-color);
+  color: white;
+  letter-spacing: 0.5px;
+}
+
+.iv-subtitle {
+  font-size: 14px;
+  color: var(--soft-ink);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.iv-core-strategy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--iv-color) 10%, white);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--iv-color);
+}
+
+.iv-section {
+  display: grid;
+  gap: 8px;
+}
+
+.iv-section h4 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.iv-section ul,
+.iv-section ol {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+}
+
+.iv-section ul li,
+.iv-section ol li {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.iv-section .quote-line {
+  font-style: italic;
+  color: color-mix(in srgb, var(--iv-color) 60%, var(--ink));
+}
+
+.iv-buddha {
+  padding: 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--iv-color) 8%, white);
+  border: 1px solid color-mix(in srgb, var(--iv-color) 20%, var(--line));
+}
+
+.iv-chant {
+  font-size: 20px;
+  font-weight: 800;
+  text-align: center;
+  letter-spacing: 2px;
+  padding: 12px;
   border-radius: 8px;
   background: white;
-  color: var(--ink);
+  color: var(--iv-color);
+  margin: 6px 0;
 }
 
-.status-select.has-value {
-  color: var(--status-color);
-  border-color: color-mix(in srgb, var(--status-color) 34%, var(--line));
-  background: var(--status-bg);
-  font-weight: 700;
+.iv-buddha-name {
+  text-align: center;
+  font-size: 14px;
+  color: var(--ink);
+  font-weight: 600;
+  margin: 0;
 }
 
-.status-select option {
-  color: var(--ink);
-  background: white;
+.iv-meaning {
+  text-align: center;
+  font-size: 12px;
+  color: var(--soft-ink);
+  margin: 4px 0 0;
+}
+
+.iv-actions {
+  padding: 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--iv-color) 10%, white);
+  border: 1px dashed color-mix(in srgb, var(--iv-color) 35%, var(--line));
+}
+
+.iv-actions ol {
+  list-style-position: inside;
+}
+
+.iv-actions ol li {
+  font-weight: 600;
+  color: var(--iv-color);
 }
 
 .after-save {

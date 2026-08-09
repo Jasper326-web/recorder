@@ -14,7 +14,7 @@ import {
   toDateKey,
   trainingTracks,
 } from './domain'
-import type { AbstinenceStatus, Entry, EntryType, TrainingTrackName } from './domain'
+import type { AbstinenceStatus, Entry, EntryType, InterventionContent, TrainingTrackName } from './domain'
 import {
   clearLoginSession,
   enforceLoginSessionExpiry,
@@ -267,6 +267,125 @@ function App() {
   )
 }
 
+function StatusPanel({
+  selectedStatus,
+  onSelectStatus,
+}: {
+  selectedStatus: AbstinenceStatus | ''
+  onSelectStatus: (status: AbstinenceStatus | '') => void
+}) {
+  const meta = selectedStatus ? getAbstinenceStatusMeta(selectedStatus) : null
+
+  return (
+    <div className={`status-panel ${meta ? `level-${meta.uiLevel}` : ''}`}>
+      <div className="status-panel-header">
+        <div>
+          <strong>戒色状态</strong>
+          <span>选择当前阶段，立即获取对应干预内容</span>
+        </div>
+        {meta && (
+          <div className="status-clear" role="button" tabIndex={0} onClick={() => onSelectStatus('')}>
+            清除
+          </div>
+        )}
+      </div>
+
+      <div className="status-stage-picker">
+        {abstinenceStatuses.map((stage) => (
+          <button
+            key={stage.name}
+            className={selectedStatus === stage.name ? 'stage-btn active' : 'stage-btn'}
+            style={{
+              '--stage-color': stage.color,
+              '--stage-bg': stage.background,
+            } as CSSProperties}
+            onClick={() => onSelectStatus(stage.name)}
+            type="button"
+          >
+            <span className="stage-level-badge">{stage.level}</span>
+            <span className="stage-name">{stage.name}</span>
+          </button>
+        ))}
+      </div>
+
+      {meta && <InterventionDisplay content={meta} />}
+    </div>
+  )
+}
+
+function InterventionDisplay({ content }: { content: InterventionContent }) {
+  const panelClass = `intervention-panel level-${content.uiLevel}`
+
+  return (
+    <div
+      className={panelClass}
+      style={{
+        '--iv-color': content.color,
+        '--iv-bg': content.background,
+      } as CSSProperties}
+    >
+      <div className="iv-header">
+        <div className="iv-stage-title">
+          <span className="iv-level-badge">阶段 {content.level}</span>
+          <h3>{content.stageTitle}</h3>
+        </div>
+        <p className="iv-subtitle">{content.stageSubtitle}</p>
+      </div>
+
+      <div className="iv-core-strategy">
+        <Icon name="sparkles" size={16} />
+        <span>{content.coreStrategy}</span>
+      </div>
+
+      <div className="iv-section iv-buddha">
+        <h4>
+          <Icon name="heart" size={14} />
+          佛号持诵
+        </h4>
+        <div className="iv-chant">{content.buddhaChant}</div>
+        <p className="iv-buddha-name">{content.buddhaName}</p>
+        <p className="iv-meaning">{content.buddhaMeaning}</p>
+      </div>
+
+      <div className="iv-section">
+        <h4>
+          <Icon name="file" size={14} />
+          中医与传统文化警醒
+        </h4>
+        <ul>
+          {content.tcmAdvice.map((item, index) => (
+            <li key={index}>{item}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="iv-section">
+        <h4>
+          <Icon name="sparkles" size={14} />
+          警醒语
+        </h4>
+        <ul>
+          {content.warningQuotes.map((item, index) => (
+            <li key={index} className="quote-line">{item}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="iv-section iv-actions">
+        <h4>
+          <Icon name="plus" size={14} />
+          立即行动
+        </h4>
+        <ol>
+          {content.actionSteps.map((item, index) => (
+            <li key={index}>{item}</li>
+          ))}
+        </ol>
+      </div>
+    </div>
+  )
+}
+
 function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
   const [type, setType] = useState<EntryType>('text')
   const [abstinenceStatus, setAbstinenceStatus] = useState<AbstinenceStatus | ''>('')
@@ -357,10 +476,6 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
       setError('先写下一点点也可以。')
       return
     }
-    if (!abstinenceStatus) {
-      setError('请先选择今天的戒色状态。')
-      return
-    }
     if (type === 'video' && !recordedBlob) {
       setError('视频记录需要先完成一段录制。')
       return
@@ -386,7 +501,7 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
 
       const baseEntry = createEntry({
         type,
-        abstinenceStatus,
+        abstinenceStatus: abstinenceStatus || '清心寡欲',
         bodyText,
       })
       const videoBlobRef = type !== 'text' && recordedBlob ? await uploadMediaBlob(baseEntry.id, userId, recordedBlob, type) : undefined
@@ -395,7 +510,6 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
       await upsertCloudEntry(entry, userId)
       onAddEntry(entry)
       setBodyText('')
-      setAbstinenceStatus('')
       setRecordedBlob(null)
       if (recordedUrl) URL.revokeObjectURL(recordedUrl)
       setRecordedUrl('')
@@ -412,7 +526,7 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
       <header className="section-header">
         <div>
           <h1>开始记录</h1>
-          <p>打开就写，或者打开摄像头就录。记录完成后会自动上传到 Supabase。</p>
+          <p>先选择当前戒色阶段获取干预内容，需要时再记录文字/视频/音频。</p>
         </div>
         <div className="mode-switch" aria-label="记录类型">
           <button className={type === 'text' ? 'active' : ''} onClick={() => setType('text')} type="button">
@@ -430,29 +544,10 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
         </div>
       </header>
 
+      <StatusPanel selectedStatus={abstinenceStatus} onSelectStatus={setAbstinenceStatus} />
+
       <form className="record-layout" onSubmit={submitEntry}>
         <div className="record-composer">
-          <label
-            className="status-field"
-            style={abstinenceStatus ? {
-              '--status-bg': getAbstinenceStatusMeta(abstinenceStatus).background,
-              '--status-color': getAbstinenceStatusMeta(abstinenceStatus).color,
-            } as CSSProperties : undefined}
-          >
-            <span>今天的戒色状态</span>
-            <select
-              className={abstinenceStatus ? 'status-select has-value' : 'status-select'}
-              onChange={(event) => setAbstinenceStatus(event.target.value as AbstinenceStatus)}
-              required
-              value={abstinenceStatus}
-            >
-              <option disabled value="">请选择（必填）</option>
-              {abstinenceStatuses.map((status) => (
-                <option key={status.name} value={status.name}>{status.name}</option>
-              ))}
-            </select>
-          </label>
-
           {type === 'text' ? (
             <label className="field-block">
               <span>文字记录</span>

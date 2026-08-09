@@ -1,13 +1,12 @@
 export type EntryType = 'text' | 'video' | 'audio'
 
 export type AbstinenceStatus =
-  | '想都没想'
-  | '有点念头'
-  | '念头很强'
-  | '看过片了'
-  | '上手了'
-  | '只x 没射'
-  | '破戒了'
+  | '清心寡欲'
+  | '起心动念'
+  | '心神不宁'
+  | '欲望冲脑'
+  | '千钧一发'
+  | '极度危急'
 
 export type TrainingTrackName =
   | '情绪控制力'
@@ -96,19 +95,196 @@ export const trainingTracks: Array<{
   },
 ]
 
-export const abstinenceStatuses: Array<{
+export type InterventionContent = {
   name: AbstinenceStatus
   level: number
   color: string
   background: string
-}> = [
-  { name: '想都没想', level: 0, color: '#1b8a4a', background: '#d9f2e2' },
-  { name: '有点念头', level: 1, color: '#4a9a2b', background: '#e3f4d0' },
-  { name: '念头很强', level: 2, color: '#c9a227', background: '#fef3c7' },
-  { name: '看过片了', level: 3, color: '#d97706', background: '#fee0b2' },
-  { name: '上手了', level: 4, color: '#dc2626', background: '#fecaca' },
-  { name: '只x 没射', level: 5, color: '#b91c1c', background: '#fda4af' },
-  { name: '破戒了', level: 6, color: '#7f1d1d', background: '#ef4444' },
+  stageTitle: string
+  stageSubtitle: string
+  coreStrategy: string
+  buddhaChant: string
+  buddhaName: string
+  buddhaMeaning: string
+  tcmAdvice: string[]
+  warningQuotes: string[]
+  actionSteps: string[]
+  uiLevel: 'calm' | 'warning' | 'critical' | 'emergency'
+}
+
+export const abstinenceStatuses: InterventionContent[] = [
+  {
+    name: '清心寡欲',
+    level: 0,
+    color: '#1b8a4a',
+    background: '#d9f2e2',
+    stageTitle: '清心寡欲',
+    stageSubtitle: '心如止水，正念满满',
+    coreStrategy: '保持清净心，继续日常修行与觉察。',
+    buddhaChant: '南无阿弥陀佛',
+    buddhaName: '阿弥陀佛',
+    buddhaMeaning: '无量寿、无量光，普照十方，接引往生。',
+    tcmAdvice: [
+      '此刻身心安定，气血调和，正是养护正气的好时机。',
+      '建议做一段呼吸冥想或轻量运动，巩固这份清净状态。',
+    ],
+    warningQuotes: [
+      '「道高一尺，魔高一丈。」守住清净心就是最大的修行。',
+      '「不积跬步，无以至千里。」每一次的坚持都在积累福报。',
+    ],
+    actionSteps: [
+      '继续当前的正念状态，可以记录今天的好习惯或心得体会。',
+      '将这份安定分享给身边需要的人，让善意流动起来。',
+    ],
+    uiLevel: 'calm',
+  },
+  {
+    name: '起心动念',
+    level: 1,
+    color: '#4a9a2b',
+    background: '#e3f4d0',
+    stageTitle: '起心动念',
+    stageSubtitle: '微风起于青萍之末，趁火苗未大一念斩断',
+    coreStrategy: '清净心观、转念切断。念头即是火种，不续薪则火自灭。',
+    buddhaChant: '南无观世音菩萨',
+    buddhaName: '观世音菩萨',
+    buddhaMeaning: '《妙法莲华经·普门品》云：「若有多欲之人，常念恭敬观世音菩萨，便得离欲。」',
+    tcmAdvice: [
+      '心火初动，肾水未伤。此时闭眼深呼吸三次，将心气沉入丹田，心火自然降下。',
+      '按揉手心劳宫穴 30 秒，帮助平复心火。',
+    ],
+    warningQuotes: [
+      '「念头即是火种，不续薪则火自灭。转念只在一瞬间！」',
+      '「念起即觉，觉之即无。」不需对抗，只需觉察，它便失去力量。',
+    ],
+    actionSteps: [
+      '在心中默念「南无观世音菩萨」10 遍，将注意力完全集中在佛号的声音或字形上。',
+      '立刻起身走几步，喝一杯温水，让身体的能量流动起来。',
+      '可以在心中发愿：「愿我以此一念清净心，回向给一切众生。」',
+    ],
+    uiLevel: 'calm',
+  },
+  {
+    name: '心神不宁',
+    level: 2,
+    color: '#c9a227',
+    background: '#fef3c7',
+    stageTitle: '心神不宁',
+    stageSubtitle: '欲望被勾起，开始心慌、躁动',
+    coreStrategy: '降伏心火、强力阻断。心动则百脉沸腾，千万不要伸手！',
+    buddhaChant: '南无阿弥陀佛',
+    buddhaName: '阿弥陀佛',
+    buddhaMeaning: '以一声佛号替换邪念，佛光普照，邪念自消。',
+    tcmAdvice: [
+      '「心动则百脉沸腾。」你现在的烦躁，是心火独亢、水火不济的表现。',
+      '立刻放下手机，去洗手间用冷水洗脸、洗手腕，刺激神经，强行降温。',
+      '按揉脚心涌泉穴 1 分钟，引火归元。',
+    ],
+    warningQuotes: [
+      '「顺之则为凡，逆之则为圣。」',
+      '「千万不要伸手！手一动，精气就开始暗耗了。」',
+      '「念起即觉，觉之即无。」不要和欲望对抗，只需觉察到它。',
+    ],
+    actionSteps: [
+      '立刻起身，离开当前环境，到户外或阳台走 2 分钟。',
+      '用冷水洗脸和手腕 30 秒，让身体从"战斗模式"中冷静下来。',
+      '大声或默念「南无阿弥陀佛」20 遍。',
+      '做 10 次深呼吸，吸气 4 秒，呼气 8 秒。',
+    ],
+    uiLevel: 'warning',
+  },
+  {
+    name: '欲望冲脑',
+    level: 3,
+    color: '#d97706',
+    background: '#fee0b2',
+    stageTitle: '欲望冲脑',
+    stageSubtitle: '理智边缘，开始找借口"就看一眼"',
+    coreStrategy: '因果警示、强力对治。不净观+后果震撼，断除执着。',
+    buddhaChant: '南无大势至菩萨',
+    buddhaName: '大势至菩萨',
+    buddhaMeaning: '大势至菩萨以智慧光普及一切，能给人无上威神力阻断魔障。',
+    tcmAdvice: [
+      '「肾为先天之本，藏精主骨生髓！你现在每一次冲动，都在暗中抽取你的骨髓与脑髓！」',
+      '想想破戒后的空虚、自卑、眼神浑浊、脑雾和脱发！你真的要把未来的尊严奉献给这几秒的快感吗？',
+    ],
+    warningQuotes: [
+      '「红颜白骨，转瞬即逝。」观想屏幕里的虚幻影像，不过是一具包裹着脓血、粪便、骨骼和腥臭体液的皮囊。',
+      '「短暂快感换长期痛苦，这笔账永远算不清。」',
+      '「你当下的每一次坚持，都是在为未来的自己积累福报与正气。」',
+    ],
+    actionSteps: [
+      '大声念「南无大势至菩萨」10 遍，每一字都从胸腔发出。',
+      '立刻站起来，做 20 个深蹲，让血液离开下半身。',
+      '用冷水冲手腕 1 分钟，刺激桡动脉降压。',
+      '强迫自己直视前方某个固定点 30 秒，切断神经回路。',
+      '如果仍难抵抗，立刻拨打一个你信任的朋友或家人的电话。',
+    ],
+    uiLevel: 'critical',
+  },
+  {
+    name: '千钧一发',
+    level: 4,
+    color: '#dc2626',
+    background: '#fecaca',
+    stageTitle: '千钧一发',
+    stageSubtitle: '手已放在敏感部位，濒临失控',
+    coreStrategy: '身体物理断连、痛点强刺激、极其短促的警示。',
+    buddhaChant: '南无药师琉璃光如来',
+    buddhaName: '药师琉璃光如来',
+    buddhaMeaning: '药师佛十二大愿，专门拯救身心痛苦、贪嗔痴炽盛的众生，具强大回复元气与清净的力量。',
+    tcmAdvice: [
+      '「当机立断，一秒即是天堂地狱之分！」',
+      '「做 30 个深蹲！让血液离开下半身！现在！立刻！」',
+      '「用拇指按压另一只手的虎口合谷穴，用力按到有酸胀感，保持 60 秒！」',
+    ],
+    warningQuotes: [
+      '⚠️ 【立刻站起来！！离开这张椅子！！】',
+      '「这绝不是享受，这是在服毒饮鸩！想想医院走廊里的痛苦，想想你未竟的人生！」',
+      '「你的人生价值，远不止这几秒的多巴胺刺激！」',
+      '「胜利就在这最后的几秒钟！放弃就是前功尽弃！」',
+    ],
+    actionSteps: [
+      '【紧急 1】立刻站起来！！双脚站立，不要坐着！',
+      '【紧急 2】做 30 个深蹲，越快越好，让血液立刻回流到上半身！',
+      '【紧急 3】用最大声音念「南无药师琉璃光如来」10 遍！',
+      '【紧急 4】用冷水浇头和脖子 30 秒！',
+      '【紧急 5】如果仍无法抵抗，立刻冲向户外，奔跑 5 分钟！',
+    ],
+    uiLevel: 'emergency',
+  },
+  {
+    name: '极度危急',
+    level: 5,
+    color: '#991b1b',
+    background: '#ef4444',
+    stageTitle: '极度危急',
+    stageSubtitle: '理智接近 0%，处于破罐子破摔的边缘',
+    coreStrategy: '终极唤醒、慈悲救拔、唤醒最深层的良知。',
+    buddhaChant: '南无地藏王菩萨',
+    buddhaName: '地藏王菩萨',
+    buddhaMeaning: '地藏菩萨愿力宏深，专救处于绝境、地狱边缘之众生。「地狱不空，誓不成佛！」',
+    tcmAdvice: [
+      '「万恶淫为首，百善孝为先。」想想父母对你的期望，想想你曾经立下的宏愿！',
+      '「你今天的每一次坚持，都是在为未来的自己积累无上的福报与正气。」',
+      '「停下！哪怕只是躺在地上喘气，也绝对不要动手！胜利就在这最后的几秒钟！」',
+    ],
+    warningQuotes: [
+      '「菩萨保佑，赐我清净定力！拔除我心中的毒刺！」',
+      '「慈悲的佛光一直在照耀你，不要抛弃你自己！只要你现在停下，你就赢了这场最艰难的战役！」',
+      '「想想你的理想、你的责任、你的家人——你怎么能让这一切毁于一旦？」',
+      '「现在停下，你就是英雄！现在放弃，之前所有的坚持都将化为乌有！」',
+      '「停下！停下！停下！佛光照进你的心中，邪魔退散！」',
+    ],
+    actionSteps: [
+      '【终极 1】立刻倒地或躺下，四肢摊开，让身体完全放松！',
+      '【终极 2】用全身力气大喊「南无地藏王菩萨」！连续喊 20 遍！',
+      '【终极 3】闭眼观想：金色佛光从头顶灌入，净化你的全身，一切贪欲化为清净！',
+      '【终极 4】如果还有一丝力气，用拇指死死掐住另一只手的内关穴（手腕横纹上 2 寸）！',
+      '【终极 5】发愿：「弟子愿以今日之坚持，回向给一切正在受苦的众生，愿他们都能离苦得乐！」',
+    ],
+    uiLevel: 'emergency',
+  },
 ]
 
 const trackKeywords: Record<TrainingTrackName, string[]> = {
@@ -119,7 +295,7 @@ const trackKeywords: Record<TrainingTrackName, string[]> = {
 }
 
 const entryStorageKey = 'self-recorder.entries.v1'
-const defaultAbstinenceStatus: AbstinenceStatus = '想都没想'
+const defaultAbstinenceStatus: AbstinenceStatus = '清心寡欲'
 
 export function createEntry(draft: EntryDraft): Entry {
   const createdAt = draft.createdAt ?? new Date()
@@ -158,11 +334,12 @@ export function analyzeEntry(entry: Entry): {
   const category = entry.category
   const nextAction = entry.promptAnswers.next || '先停一下，给自己一点空间'
   const tags = mergeTags(entry.tags, trainingTracks.find((track) => track.name === category)?.tags.slice(0, 2) ?? [])
+  const statusMeta = getAbstinenceStatusMeta(entry.abstinenceStatus)
 
   return {
     category,
     tags,
-    summary: `你记录到：${entry.promptAnswers.event || entry.bodyText || (entry.type === 'audio' ? '一段音频记录' : '此刻有一些值得被看见的东西')}。当天戒色状态是「${entry.abstinenceStatus}」，这条记录主要在训练「${category}」。`,
+    summary: `你记录到：${entry.promptAnswers.event || entry.bodyText || (entry.type === 'audio' ? '一段音频记录' : '此刻有一些值得被看见的东西')}。当前状态处于「${entry.abstinenceStatus}」，属第 ${statusMeta.level} 阶段，这条记录主要在训练「${category}」。`,
     reflection: `心灵小蜜在这里。你已经把模糊的感受放到了明处，这本身就在增加掌控感。接下来可以很小地做一步：${nextAction}。`,
   }
 }
@@ -261,11 +438,11 @@ export function mergeEntries(localEntries: Entry[], incomingEntries: Entry[]): E
   return Array.from(byId.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
 
-export function getAbstinenceStatusMeta(status: AbstinenceStatus) {
+export function getAbstinenceStatusMeta(status: AbstinenceStatus): InterventionContent {
   return abstinenceStatuses.find((item) => item.name === status) ?? abstinenceStatuses[0]
 }
 
-function getWorstAbstinenceStatus(entries: Entry[]) {
+function getWorstAbstinenceStatus(entries: Entry[]): AbstinenceStatus | undefined {
   if (entries.length === 0) return undefined
   return entries
     .map((entry) => normalizeAbstinenceStatus(entry.abstinenceStatus))
