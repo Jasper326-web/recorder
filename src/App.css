@@ -474,7 +474,7 @@ select {
 
 .intervention-panel.level-emergency {
   border-color: var(--iv-color);
-  background: color-mix(in srgb, var(--iv-color) 18%, #1a1a1a);
+  background: color-mix(in srgb, var(--iv-color) 12%, white);
   border-width: 3px;
   animation: ivEmergencyPulse 1.5s ease-in-out infinite;
 }
@@ -486,7 +486,13 @@ select {
 
 .intervention-panel.level-emergency .iv-subtitle,
 .intervention-panel.level-emergency .iv-meaning {
-  color: color-mix(in srgb, var(--iv-color) 50%, white);
+  color: var(--soft-ink);
+}
+
+.intervention-panel.level-emergency .iv-chant {
+  background: white;
+  color: var(--iv-color);
+  border: 2px solid var(--iv-color);
 }
 
 .iv-header {
@@ -620,6 +626,34 @@ select {
 .iv-actions ol li {
   font-weight: 600;
   color: var(--iv-color);
+}
+
+.status-save-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 12px 20px;
+  border-radius: 10px;
+  border: 2px solid var(--save-color, var(--teal));
+  background: var(--save-color, var(--teal));
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  letter-spacing: 1px;
+}
+
+.status-save-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--save-color, var(--teal)) 35%, transparent);
+}
+
+.status-save-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .after-save {

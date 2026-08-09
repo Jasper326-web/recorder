@@ -270,11 +270,24 @@ function App() {
 function StatusPanel({
   selectedStatus,
   onSelectStatus,
+  onSaveStatus,
 }: {
   selectedStatus: AbstinenceStatus | ''
   onSelectStatus: (status: AbstinenceStatus | '') => void
+  onSaveStatus?: (status: AbstinenceStatus) => Promise<void> | void
 }) {
   const meta = selectedStatus ? getAbstinenceStatusMeta(selectedStatus) : null
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    if (!selectedStatus || !onSaveStatus) return
+    setSaving(true)
+    try {
+      await onSaveStatus(selectedStatus)
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <div className={`status-panel ${meta ? `level-${meta.uiLevel}` : ''}`}>
@@ -308,7 +321,22 @@ function StatusPanel({
         ))}
       </div>
 
-      {meta && <InterventionDisplay content={meta} />}
+      {meta && (
+        <>
+          <InterventionDisplay content={meta} />
+          <button
+            className="status-save-btn"
+            style={{
+              '--save-color': meta.color,
+            } as CSSProperties}
+            disabled={saving}
+            onClick={handleSave}
+            type="button"
+          >
+            {saving ? '正在保存…' : '保存状态到日历'}
+          </button>
+        </>
+      )}
     </div>
   )
 }
@@ -469,6 +497,35 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
     recorderRef.current?.stop()
   }
 
+  async function saveStatusOnly(status: AbstinenceStatus) {
+    setError('')
+    if (!supabase) {
+      setError('还没有配置 Supabase，暂时不能保存状态。')
+      return
+    }
+    try {
+      const { data } = await supabase.auth.getSession()
+      const userId = data.session?.user.id
+      if (!userId) {
+        setError('请先到设置页登录，再保存状态。')
+        return
+      }
+
+      const entry = createEntry({
+        type: 'text',
+        abstinenceStatus: status,
+        bodyText: '',
+      })
+
+      await upsertCloudEntry(entry, userId)
+      onAddEntry(entry)
+      setAbstinenceStatus('')
+      setError('')
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : '状态保存失败。')
+    }
+  }
+
   async function submitEntry(event: FormEvent) {
     event.preventDefault()
     setError('')
@@ -544,7 +601,7 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
         </div>
       </header>
 
-      <StatusPanel selectedStatus={abstinenceStatus} onSelectStatus={setAbstinenceStatus} />
+      <StatusPanel selectedStatus={abstinenceStatus} onSelectStatus={setAbstinenceStatus} onSaveStatus={saveStatusOnly} />
 
       <form className="record-layout" onSubmit={submitEntry}>
         <div className="record-composer">

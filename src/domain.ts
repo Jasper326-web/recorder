@@ -257,7 +257,7 @@ export const abstinenceStatuses: InterventionContent[] = [
     name: '极度危急',
     level: 5,
     color: '#991b1b',
-    background: '#ef4444',
+    background: '#fee2e2',
     stageTitle: '极度危急',
     stageSubtitle: '理智接近 0%，处于破罐子破摔的边缘',
     coreStrategy: '终极唤醒、慈悲救拔、唤醒最深层的良知。',
