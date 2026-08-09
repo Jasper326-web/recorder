@@ -278,14 +278,19 @@ function StatusPanel({
 }) {
   const meta = selectedStatus ? getAbstinenceStatusMeta(selectedStatus) : null
   const [saving, setSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
 
   async function handleSave() {
     if (!selectedStatus || !onSaveStatus) return
     setSaving(true)
+    setSaveSuccess(false)
     try {
       await onSaveStatus(selectedStatus)
+      setSaveSuccess(true)
+      onSelectStatus('')
     } finally {
       setSaving(false)
+      setTimeout(() => setSaveSuccess(false), 3000)
     }
   }
 
@@ -296,7 +301,7 @@ function StatusPanel({
           <strong>戒色状态</strong>
           <span>选择当前阶段，立即获取对应干预内容</span>
         </div>
-        {meta && (
+        {meta && !saving && (
           <div className="status-clear" role="button" tabIndex={0} onClick={() => onSelectStatus('')}>
             清除
           </div>
@@ -321,7 +326,14 @@ function StatusPanel({
         ))}
       </div>
 
-      {meta && (
+      {saveSuccess && (
+        <div className="status-saved-banner">
+          <Icon name="check" size={18} />
+          状态已保存，日历已更新。继续保持，你做得很好。
+        </div>
+      )}
+
+      {meta && !saving && (
         <>
           <InterventionDisplay content={meta} />
           <button
@@ -329,13 +341,18 @@ function StatusPanel({
             style={{
               '--save-color': meta.color,
             } as CSSProperties}
-            disabled={saving}
             onClick={handleSave}
             type="button"
           >
-            {saving ? '正在保存…' : '保存状态到日历'}
+            保存状态到日历
           </button>
         </>
+      )}
+
+      {saving && (
+        <button className="status-save-btn saving" disabled type="button">
+          正在保存…
+        </button>
       )}
     </div>
   )
@@ -519,8 +536,6 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
 
       await upsertCloudEntry(entry, userId)
       onAddEntry(entry)
-      setAbstinenceStatus('')
-      setError('')
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : '状态保存失败。')
     }

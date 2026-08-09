@@ -112,7 +112,7 @@ function rowToEntry(row: EntryRow): Entry {
     id: row.id,
     createdAt: row.created_at,
     type: row.type,
-    abstinenceStatus: row.abstinence_status ?? '想都没想',
+    abstinenceStatus: row.abstinence_status ?? '清心寡欲',
     promptAnswers: row.prompt_answers,
     bodyText: row.body_text,
     videoBlobRef: row.video_blob_ref ?? undefined,
