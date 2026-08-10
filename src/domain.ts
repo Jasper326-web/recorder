@@ -1,5 +1,17 @@
 export type EntryType = 'text' | 'video' | 'audio'
 
+export type HabitName = '英语' | '健身' | 'iOS编程课'
+
+export const habitOptions: Array<{
+  name: HabitName
+  icon: string
+  color: string
+}> = [
+  { name: '英语', icon: '📖', color: '#3d8b7a' },
+  { name: '健身', icon: '💪', color: '#d97706' },
+  { name: 'iOS编程课', icon: '💻', color: '#6b5b7a' },
+]
+
 export type AbstinenceStatus =
   | '清心寡欲'
   | '起心动念'
@@ -25,6 +37,7 @@ export type Entry = {
   createdAt: string
   type: EntryType
   abstinenceStatus: AbstinenceStatus
+  habits: HabitName[]
   promptAnswers: PromptAnswers
   bodyText: string
   videoBlobRef?: string
@@ -38,6 +51,7 @@ export type Entry = {
 export type EntryDraft = {
   type: EntryType
   abstinenceStatus?: AbstinenceStatus
+  habits?: HabitName[]
   promptAnswers?: PromptAnswers
   bodyText: string
   videoBlobRef?: string
@@ -55,6 +69,7 @@ export type CalendarDay = {
   types: EntryType[]
   categories: TrainingTrackName[]
   abstinenceStatus?: AbstinenceStatus
+  habits: HabitName[]
 }
 
 export type EntryFilter = {
@@ -308,6 +323,7 @@ export function createEntry(draft: EntryDraft): Entry {
     createdAt: createdAt.toISOString(),
     type: draft.type,
     abstinenceStatus: draft.abstinenceStatus ?? defaultAbstinenceStatus,
+    habits: draft.habits ?? [],
     promptAnswers,
     bodyText: draft.bodyText.trim(),
     videoBlobRef: draft.videoBlobRef,
@@ -366,6 +382,7 @@ export function buildCalendarDays(entries: Entry[], anchorDate = new Date()): Ca
       types: unique(dayEntries.map((entry) => entry.type)),
       categories: unique(dayEntries.map((entry) => entry.category)),
       abstinenceStatus,
+      habits: unique(dayEntries.flatMap((entry) => entry.habits ?? [])),
     }
   })
 }
@@ -453,6 +470,7 @@ function normalizeEntry(entry: Entry): Entry {
   return {
     ...entry,
     abstinenceStatus: normalizeAbstinenceStatus(entry.abstinenceStatus),
+    habits: entry.habits ?? [],
     promptAnswers: entry.promptAnswers ?? { state: '', event: '', next: '' },
     tags: entry.tags ?? [],
   }

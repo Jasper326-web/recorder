@@ -8,13 +8,14 @@ import {
   createEntry,
   filterEntries,
   getAbstinenceStatusMeta,
+  habitOptions,
   loadEntries,
   mergeEntries,
   saveEntries,
   toDateKey,
   trainingTracks,
 } from './domain'
-import type { AbstinenceStatus, Entry, EntryType, InterventionContent, TrainingTrackName } from './domain'
+import type { AbstinenceStatus, Entry, EntryType, HabitName, InterventionContent, TrainingTrackName } from './domain'
 import {
   clearLoginSession,
   enforceLoginSessionExpiry,
@@ -434,6 +435,7 @@ function InterventionDisplay({ content }: { content: InterventionContent }) {
 function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
   const [type, setType] = useState<EntryType>('text')
   const [abstinenceStatus, setAbstinenceStatus] = useState<AbstinenceStatus | ''>('')
+  const [habits, setHabits] = useState<HabitName[]>([])
   const [bodyText, setBodyText] = useState('')
   const [error, setError] = useState('')
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
@@ -541,6 +543,14 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
     }
   }
 
+  function toggleHabit(habit: HabitName) {
+    setHabits((current) =>
+      current.includes(habit)
+        ? current.filter((h) => h !== habit)
+        : [...current, habit],
+    )
+  }
+
   async function submitEntry(event: FormEvent) {
     event.preventDefault()
     setError('')
@@ -574,6 +584,7 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
       const baseEntry = createEntry({
         type,
         abstinenceStatus: abstinenceStatus || '清心寡欲',
+        habits,
         bodyText,
       })
       const videoBlobRef = type !== 'text' && recordedBlob ? await uploadMediaBlob(baseEntry.id, userId, recordedBlob, type) : undefined
@@ -582,6 +593,7 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
       await upsertCloudEntry(entry, userId)
       onAddEntry(entry)
       setBodyText('')
+      setHabits([])
       setRecordedBlob(null)
       if (recordedUrl) URL.revokeObjectURL(recordedUrl)
       setRecordedUrl('')
@@ -684,6 +696,27 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
           )}
 
           {error && <p className="form-error">{error}</p>}
+
+          <div className="habits-section">
+            <span className="habits-label">今日习惯</span>
+            <div className="habits-checkbox-row">
+              {habitOptions.map((habit) => (
+                <label key={habit.name} className={`habit-checkbox ${habits.includes(habit.name) ? 'checked' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={habits.includes(habit.name)}
+                    onChange={() => toggleHabit(habit.name)}
+                  />
+                  <span className="habit-checkmark">
+                    {habits.includes(habit.name) && <Icon name="check" size={14} />}
+                  </span>
+                  <span className="habit-icon">{habit.icon}</span>
+                  <span className="habit-name">{habit.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
           <button className="primary-action" disabled={isSaving} type="submit">
             <Icon name="plus" size={19} />
             {isSaving ? '正在上传' : '保存并上传'}
@@ -814,6 +847,25 @@ function CalendarView({ entries, onSelectEntry }: { entries: Entry[]; onSelectEn
                     <i key={category} />
                   ))}
                 </div>
+                {day.habits.length > 0 && (
+                  <div className="day-habits">
+                    {day.habits.map((habitName) => {
+                      const habitMeta = habitOptions.find((h) => h.name === habitName)
+                      return (
+                        <span
+                          key={habitName}
+                          className="day-habit-tag"
+                          style={{
+                            '--habit-color': habitMeta?.color ?? '#3d8b7a',
+                          } as CSSProperties}
+                          title={habitName}
+                        >
+                          {habitMeta?.icon}
+                        </span>
+                      )
+                    })}
+                  </div>
+                )}
               </button>
             )
           })}
@@ -1266,6 +1318,20 @@ function EntryCard({ entry, onSelect }: { entry: Entry; onSelect: (id: string) =
           '--status-bg': getAbstinenceStatusMeta(entry.abstinenceStatus).background,
           '--status-color': getAbstinenceStatusMeta(entry.abstinenceStatus).color,
         } as CSSProperties}>{entry.abstinenceStatus}</span>
+        {entry.habits.map((habitName) => {
+          const habitMeta = habitOptions.find((h) => h.name === habitName)
+          return (
+            <span
+              key={habitName}
+              className="habit-chip"
+              style={{
+                '--habit-color': habitMeta?.color ?? '#3d8b7a',
+              } as CSSProperties}
+            >
+              {habitMeta?.icon} {habitName}
+            </span>
+          )
+        })}
         <span>{entry.category}</span>
         {entry.tags.slice(0, 4).map((tag) => (
           <span key={tag}>{tag}</span>
