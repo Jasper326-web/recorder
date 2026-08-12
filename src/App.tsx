@@ -9,13 +9,16 @@ import {
   filterEntries,
   getAbstinenceStatusMeta,
   habitOptions,
+  loadDailyStates,
   loadEntries,
   mergeEntries,
+  saveDailyStates,
   saveEntries,
   toDateKey,
   trainingTracks,
+  upsertDailyState,
 } from './domain'
-import type { AbstinenceStatus, Entry, EntryType, HabitName, InterventionContent, TrainingTrackName } from './domain'
+import type { AbstinenceStatus, DailyState, Entry, EntryType, HabitName, InterventionContent, TrainingTrackName } from './domain'
 import {
   clearLoginSession,
   enforceLoginSessionExpiry,
@@ -24,7 +27,7 @@ import {
   markLoginSession,
   SESSION_DAYS,
 } from './authSession'
-import { fetchCloudEntries, getCloudMediaUrl, uploadMediaBlob, upsertCloudEntry } from './cloudSync'
+import { fetchCloudDailyStates, fetchCloudEntries, getCloudMediaUrl, uploadMediaBlob, upsertCloudDailyState, upsertCloudEntry } from './cloudSync'
 import { hasSupabaseConfig, supabase } from './supabaseClient'
 import { clearVideoBlobs } from './videoStore'
 
@@ -100,6 +103,7 @@ const rememberedEmailKey = 'self-recorder.remembered-emails.v1'
 
 function App() {
   const [entries, setEntries] = useState<Entry[]>(() => loadEntries())
+  const [dailyStates, setDailyStates] = useState<Record<string, DailyState>>(() => loadDailyStates())
   const [activeTab, setActiveTab] = useState<Tab>('record')
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null)
   const [status, setStatus] = useState('')
@@ -107,6 +111,10 @@ function App() {
   useEffect(() => {
     saveEntries(entries)
   }, [entries])
+
+  useEffect(() => {
+    saveDailyStates(dailyStates)
+  }, [dailyStates])
 
   useEffect(() => {
     if (!supabase) return
@@ -124,6 +132,16 @@ function App() {
         }
       } catch {
         if (isMounted) setStatus('读取 Supabase 记录失败，请稍后刷新重试。')
+      }
+    }
+
+    async function loadCloudDailyStates() {
+      try {
+        const cloudDailyStates = await fetchCloudDailyStates()
+        if (!isMounted) return
+        setDailyStates((current) => ({ ...cloudDailyStates, ...current }))
+      } catch {
+        if (isMounted) console.warn('读取 Supabase 每日状态失败，使用本地数据。')
       }
     }
 
@@ -147,6 +165,7 @@ function App() {
       }
 
       loadCloudEntries()
+      loadCloudDailyStates()
     }
 
     restoreSession()
@@ -161,6 +180,7 @@ function App() {
           }
         }
         loadCloudEntries()
+        loadCloudDailyStates()
       } else if (event === 'SIGNED_OUT') {
         clearLoginSession()
       }
@@ -190,6 +210,28 @@ function App() {
     setEntries((current) => [entry, ...current])
     setSelectedEntryId(entry.id)
     setStatus('已保存。你刚刚又多看见了自己一点。')
+  }
+
+  async function saveDailyState(dateKey: string, abstinenceStatus?: AbstinenceStatus, habits?: HabitName[]) {
+    const newState: DailyState = {
+      dateKey,
+      abstinenceStatus,
+      habits: habits ?? [],
+      updatedAt: new Date().toISOString(),
+    }
+    setDailyStates((current) => upsertDailyState(current, newState))
+
+    if (supabase) {
+      try {
+        const { data } = await supabase.auth.getSession()
+        const userId = data.session?.user.id
+        if (userId) {
+          await upsertCloudDailyState(newState, userId)
+        }
+      } catch (error) {
+        console.warn('保存每日状态到云端失败:', error)
+      }
+    }
   }
 
   async function clearAll() {
@@ -235,7 +277,7 @@ function App() {
 
       <main className="main-panel">
         {activeTab === 'record' && <RecordView onAddEntry={addEntry} />}
-        {activeTab === 'calendar' && <CalendarView entries={entries} onSelectEntry={setSelectedEntryId} />}
+        {activeTab === 'calendar' && <CalendarView entries={entries} dailyStates={dailyStates} onSelectEntry={setSelectedEntryId} onSaveDailyState={saveDailyState} />}
         {activeTab === 'list' && <ListView entries={sortedEntries} onSelectEntry={setSelectedEntryId} />}
         {activeTab === 'companion' && <CompanionView entries={sortedEntries} onOpenSettings={() => setActiveTab('settings')} selectedEntry={selectedEntry} />}
         {activeTab === 'settings' && <SettingsView onClear={clearAll} />}
@@ -263,97 +305,6 @@ function App() {
           <Icon name="check" size={17} />
           {status}
         </div>
-      )}
-    </div>
-  )
-}
-
-function StatusPanel({
-  selectedStatus,
-  onSelectStatus,
-  onSaveStatus,
-}: {
-  selectedStatus: AbstinenceStatus | ''
-  onSelectStatus: (status: AbstinenceStatus | '') => void
-  onSaveStatus?: (status: AbstinenceStatus) => Promise<void> | void
-}) {
-  const meta = selectedStatus ? getAbstinenceStatusMeta(selectedStatus) : null
-  const [saving, setSaving] = useState(false)
-  const [saveSuccess, setSaveSuccess] = useState(false)
-
-  async function handleSave() {
-    if (!selectedStatus || !onSaveStatus) return
-    setSaving(true)
-    setSaveSuccess(false)
-    try {
-      await onSaveStatus(selectedStatus)
-      setSaveSuccess(true)
-      onSelectStatus('')
-    } finally {
-      setSaving(false)
-      setTimeout(() => setSaveSuccess(false), 3000)
-    }
-  }
-
-  return (
-    <div className={`status-panel ${meta ? `level-${meta.uiLevel}` : ''}`}>
-      <div className="status-panel-header">
-        <div>
-          <strong>戒色状态</strong>
-          <span>选择当前阶段，立即获取对应干预内容</span>
-        </div>
-        {meta && !saving && (
-          <div className="status-clear" role="button" tabIndex={0} onClick={() => onSelectStatus('')}>
-            清除
-          </div>
-        )}
-      </div>
-
-      <div className="status-stage-picker">
-        {abstinenceStatuses.map((stage) => (
-          <button
-            key={stage.name}
-            className={selectedStatus === stage.name ? 'stage-btn active' : 'stage-btn'}
-            style={{
-              '--stage-color': stage.color,
-              '--stage-bg': stage.background,
-            } as CSSProperties}
-            onClick={() => onSelectStatus(stage.name)}
-            type="button"
-          >
-            <span className="stage-level-badge">{stage.level}</span>
-            <span className="stage-name">{stage.name}</span>
-          </button>
-        ))}
-      </div>
-
-      {saveSuccess && (
-        <div className="status-saved-banner">
-          <Icon name="check" size={18} />
-          状态已保存，日历已更新。继续保持，你做得很好。
-        </div>
-      )}
-
-      {meta && !saving && (
-        <>
-          <InterventionDisplay content={meta} />
-          <button
-            className="status-save-btn"
-            style={{
-              '--save-color': meta.color,
-            } as CSSProperties}
-            onClick={handleSave}
-            type="button"
-          >
-            保存状态到日历
-          </button>
-        </>
-      )}
-
-      {saving && (
-        <button className="status-save-btn saving" disabled type="button">
-          正在保存…
-        </button>
       )}
     </div>
   )
@@ -434,8 +385,6 @@ function InterventionDisplay({ content }: { content: InterventionContent }) {
 
 function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
   const [type, setType] = useState<EntryType>('text')
-  const [abstinenceStatus, setAbstinenceStatus] = useState<AbstinenceStatus | ''>('')
-  const [habits, setHabits] = useState<HabitName[]>([])
   const [bodyText, setBodyText] = useState('')
   const [error, setError] = useState('')
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
@@ -516,41 +465,6 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
     recorderRef.current?.stop()
   }
 
-  async function saveStatusOnly(status: AbstinenceStatus) {
-    setError('')
-    if (!supabase) {
-      setError('还没有配置 Supabase，暂时不能保存状态。')
-      return
-    }
-    try {
-      const { data } = await supabase.auth.getSession()
-      const userId = data.session?.user.id
-      if (!userId) {
-        setError('请先到设置页登录，再保存状态。')
-        return
-      }
-
-      const entry = createEntry({
-        type: 'text',
-        abstinenceStatus: status,
-        bodyText: '',
-      })
-
-      await upsertCloudEntry(entry, userId)
-      onAddEntry(entry)
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : '状态保存失败。')
-    }
-  }
-
-  function toggleHabit(habit: HabitName) {
-    setHabits((current) =>
-      current.includes(habit)
-        ? current.filter((h) => h !== habit)
-        : [...current, habit],
-    )
-  }
-
   async function submitEntry(event: FormEvent) {
     event.preventDefault()
     setError('')
@@ -583,8 +497,6 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
 
       const baseEntry = createEntry({
         type,
-        abstinenceStatus: abstinenceStatus || '清心寡欲',
-        habits,
         bodyText,
       })
       const videoBlobRef = type !== 'text' && recordedBlob ? await uploadMediaBlob(baseEntry.id, userId, recordedBlob, type) : undefined
@@ -593,7 +505,6 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
       await upsertCloudEntry(entry, userId)
       onAddEntry(entry)
       setBodyText('')
-      setHabits([])
       setRecordedBlob(null)
       if (recordedUrl) URL.revokeObjectURL(recordedUrl)
       setRecordedUrl('')
@@ -610,7 +521,7 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
       <header className="section-header">
         <div>
           <h1>开始记录</h1>
-          <p>先选择当前戒色阶段获取干预内容，需要时再记录文字/视频/音频。</p>
+          <p>记录此刻的真实感受，文字、视频或音频都可以。</p>
         </div>
         <div className="mode-switch" aria-label="记录类型">
           <button className={type === 'text' ? 'active' : ''} onClick={() => setType('text')} type="button">
@@ -627,8 +538,6 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
           </button>
         </div>
       </header>
-
-      <StatusPanel selectedStatus={abstinenceStatus} onSelectStatus={setAbstinenceStatus} onSaveStatus={saveStatusOnly} />
 
       <form className="record-layout" onSubmit={submitEntry}>
         <div className="record-composer">
@@ -697,26 +606,6 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
 
           {error && <p className="form-error">{error}</p>}
 
-          <div className="habits-section">
-            <span className="habits-label">今日习惯</span>
-            <div className="habits-checkbox-row">
-              {habitOptions.map((habit) => (
-                <label key={habit.name} className={`habit-checkbox ${habits.includes(habit.name) ? 'checked' : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={habits.includes(habit.name)}
-                    onChange={() => toggleHabit(habit.name)}
-                  />
-                  <span className="habit-checkmark">
-                    {habits.includes(habit.name) && <Icon name="check" size={14} />}
-                  </span>
-                  <span className="habit-icon">{habit.icon}</span>
-                  <span className="habit-name">{habit.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
           <button className="primary-action" disabled={isSaving} type="submit">
             <Icon name="plus" size={19} />
             {isSaving ? '正在上传' : '保存并上传'}
@@ -761,24 +650,76 @@ function saveRememberedEmail(email: string) {
   return nextEmails
 }
 
-function CalendarView({ entries, onSelectEntry }: { entries: Entry[]; onSelectEntry: (id: string) => void }) {
+function CalendarView({
+  entries,
+  dailyStates,
+  onSelectEntry,
+  onSaveDailyState,
+}: {
+  entries: Entry[]
+  dailyStates: Record<string, DailyState>
+  onSelectEntry: (id: string) => void
+  onSaveDailyState: (dateKey: string, abstinenceStatus?: AbstinenceStatus, habits?: HabitName[]) => Promise<void>
+}) {
   const [anchor, setAnchor] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(toDateKey(new Date()))
-  const days = useMemo(() => buildCalendarDays(entries, anchor), [entries, anchor])
+  const [localStatus, setLocalStatus] = useState<AbstinenceStatus | ''>('')
+  const [localHabits, setLocalHabits] = useState<HabitName[]>([])
+  const days = useMemo(() => buildCalendarDays(entries, dailyStates, anchor), [entries, dailyStates, anchor])
   const dayEntries = entries
     .filter((entry) => toDateKey(new Date(entry.createdAt)) === selectedDate)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
+  const selectedDailyState = dailyStates[selectedDate]
+  const effectiveStatus = localStatus || selectedDailyState?.abstinenceStatus || ''
+  const effectiveHabits = localHabits.length > 0 ? localHabits : (selectedDailyState?.habits ?? [])
+
+  useEffect(() => {
+    setLocalStatus('')
+    setLocalHabits([])
+  }, [selectedDate])
+
   function moveMonth(offset: number) {
     setAnchor((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1))
   }
+
+  function toggleHabit(habit: HabitName) {
+    setLocalHabits((current) =>
+      current.includes(habit)
+        ? current.filter((h) => h !== habit)
+        : [...current, habit],
+    )
+  }
+
+  async function handleSaveStatus(status: AbstinenceStatus) {
+    setLocalStatus(status)
+    await onSaveDailyState(selectedDate, status, effectiveHabits)
+  }
+
+  async function handleSaveHabits() {
+    const newHabits = localHabits.length > 0 ? localHabits : effectiveHabits
+    setLocalHabits(newHabits)
+    await onSaveDailyState(selectedDate, effectiveStatus || undefined, newHabits)
+  }
+
+  async function handleClearStatus() {
+    setLocalStatus('')
+    await onSaveDailyState(selectedDate, undefined, effectiveHabits)
+  }
+
+  async function handleClearHabits() {
+    setLocalHabits([])
+    await onSaveDailyState(selectedDate, effectiveStatus, [])
+  }
+
+  const dayStatusMeta = effectiveStatus ? getAbstinenceStatusMeta(effectiveStatus) : null
 
   return (
     <section>
       <header className="section-header">
         <div>
           <h1>日历</h1>
-          <p>看见频率，比追求完美更重要。</p>
+          <p>点击日期，记录每日状态和习惯。看见频率，比追求完美更重要。</p>
         </div>
         <div className="calendar-controls">
           <button onClick={() => moveMonth(-1)} type="button" aria-label="上个月">
@@ -872,7 +813,78 @@ function CalendarView({ entries, onSelectEntry }: { entries: Entry[]; onSelectEn
         </div>
 
         <div className="day-panel">
-          <h2>{selectedDate} 的记录</h2>
+          <h2>{selectedDate}</h2>
+
+          <div className={`status-panel ${dayStatusMeta ? `level-${dayStatusMeta.uiLevel}` : ''}`}>
+            <div className="status-panel-header">
+              <div>
+                <strong>戒色状态</strong>
+                <span>选择当前阶段，立即获取对应干预内容</span>
+              </div>
+              {dayStatusMeta && (
+                <div className="status-clear" role="button" tabIndex={0} onClick={handleClearStatus}>
+                  清除
+                </div>
+              )}
+            </div>
+
+            <div className="status-stage-picker">
+              {abstinenceStatuses.map((stage) => (
+                <button
+                  key={stage.name}
+                  className={effectiveStatus === stage.name ? 'stage-btn active' : 'stage-btn'}
+                  style={{
+                    '--stage-color': stage.color,
+                    '--stage-bg': stage.background,
+                  } as CSSProperties}
+                  onClick={() => handleSaveStatus(stage.name)}
+                  type="button"
+                >
+                  <span className="stage-level-badge">{stage.level}</span>
+                  <span className="stage-name">{stage.name}</span>
+                </button>
+              ))}
+            </div>
+
+            {dayStatusMeta && (
+              <InterventionDisplay content={dayStatusMeta} />
+            )}
+          </div>
+
+          <div className="habits-section">
+            <span className="habits-label">今日习惯</span>
+            <div className="habits-checkbox-row">
+              {habitOptions.map((habit) => (
+                <label
+                  key={habit.name}
+                  className={`habit-checkbox ${effectiveHabits.includes(habit.name) ? 'checked' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={effectiveHabits.includes(habit.name)}
+                    onChange={() => toggleHabit(habit.name)}
+                  />
+                  <span className="habit-checkmark">
+                    {effectiveHabits.includes(habit.name) && <Icon name="check" size={14} />}
+                  </span>
+                  <span className="habit-icon">{habit.icon}</span>
+                  <span className="habit-name">{habit.name}</span>
+                </label>
+              ))}
+            </div>
+            {(localHabits.length > 0 || selectedDailyState?.habits?.length) ? (
+              <div className="habits-actions">
+                <button className="status-save-btn" onClick={handleSaveHabits} type="button">
+                  保存习惯
+                </button>
+                <button className="danger-soft" onClick={handleClearHabits} type="button">
+                  清除
+                </button>
+              </div>
+            ) : null}
+          </div>
+
+          <h3>{selectedDate} 的记录</h3>
           {dayEntries.length === 0 ? (
             <EmptyState text="这一天还没有记录。空白也是真实状态。" />
           ) : (

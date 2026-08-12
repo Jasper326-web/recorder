@@ -72,6 +72,50 @@ export type CalendarDay = {
   habits: HabitName[]
 }
 
+export type DailyState = {
+  dateKey: string
+  abstinenceStatus?: AbstinenceStatus
+  habits: HabitName[]
+  updatedAt: string
+}
+
+const dailyStateStorageKey = 'self-recorder.daily-states.v1'
+
+export function loadDailyStates(): Record<string, DailyState> {
+  if (typeof localStorage === 'undefined') return {}
+
+  try {
+    const raw = localStorage.getItem(dailyStateStorageKey)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    if (typeof parsed === 'object' && parsed !== null) {
+      return parsed as Record<string, DailyState>
+    }
+    return {}
+  } catch {
+    return {}
+  }
+}
+
+export function saveDailyStates(states: Record<string, DailyState>) {
+  localStorage.setItem(dailyStateStorageKey, JSON.stringify(states))
+}
+
+export function upsertDailyState(states: Record<string, DailyState>, state: DailyState): Record<string, DailyState> {
+  return {
+    ...states,
+    [state.dateKey]: {
+      ...states[state.dateKey],
+      ...state,
+      updatedAt: new Date().toISOString(),
+    },
+  }
+}
+
+export function getDailyStateForDate(states: Record<string, DailyState>, dateKey: string): DailyState | undefined {
+  return states[dateKey]
+}
+
 export type EntryFilter = {
   type?: EntryType | 'all'
   category?: TrainingTrackName | 'all'
@@ -360,7 +404,11 @@ export function analyzeEntry(entry: Entry): {
   }
 }
 
-export function buildCalendarDays(entries: Entry[], anchorDate = new Date()): CalendarDay[] {
+export function buildCalendarDays(
+  entries: Entry[],
+  dailyStates: Record<string, DailyState>,
+  anchorDate = new Date(),
+): CalendarDay[] {
   const year = anchorDate.getFullYear()
   const month = anchorDate.getMonth()
   const firstOfMonth = new Date(year, month, 1)
@@ -372,7 +420,7 @@ export function buildCalendarDays(entries: Entry[], anchorDate = new Date()): Ca
     date.setDate(start.getDate() + index)
     const dateKey = toDateKey(date)
     const dayEntries = entries.filter((entry) => toDateKey(new Date(entry.createdAt)) === dateKey)
-    const abstinenceStatus = getWorstAbstinenceStatus(dayEntries)
+    const dailyState = dailyStates[dateKey]
 
     return {
       dateKey,
@@ -381,8 +429,8 @@ export function buildCalendarDays(entries: Entry[], anchorDate = new Date()): Ca
       count: dayEntries.length,
       types: unique(dayEntries.map((entry) => entry.type)),
       categories: unique(dayEntries.map((entry) => entry.category)),
-      abstinenceStatus,
-      habits: unique(dayEntries.flatMap((entry) => entry.habits ?? [])),
+      abstinenceStatus: dailyState?.abstinenceStatus,
+      habits: dailyState?.habits ?? [],
     }
   })
 }
