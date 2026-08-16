@@ -1,24 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, FormEvent, ReactNode } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
+import type { ReactNode } from 'react'
 import './App.css'
+import { Icon, type IconName } from './AppIcons'
 import {
-  abstinenceStatuses,
   buildCalendarDays,
   clearEntries,
+  createDesireRecord,
   createEntry,
+  deleteDesireRecord,
   filterEntries,
-  getAbstinenceStatusMeta,
+  getDesireRecordsForDate,
+  getDesireStats,
   habitOptions,
   loadDailyStates,
+  loadDesireRecords,
   loadEntries,
   mergeEntries,
   saveDailyStates,
+  saveDesireRecords,
   saveEntries,
   toDateKey,
   trainingTracks,
   upsertDailyState,
+  upsertDesireRecord,
 } from './domain'
-import type { AbstinenceStatus, DailyState, Entry, EntryType, HabitName, InterventionContent, TrainingTrackName } from './domain'
+import type { DailyState, DesireIntensity, DesireRecord, Entry, EntryType, HabitName, TrainingTrackName } from './domain'
 import {
   clearLoginSession,
   enforceLoginSessionExpiry,
@@ -27,11 +34,12 @@ import {
   markLoginSession,
   SESSION_DAYS,
 } from './authSession'
-import { fetchCloudDailyStates, fetchCloudEntries, getCloudMediaUrl, uploadMediaBlob, upsertCloudDailyState, upsertCloudEntry } from './cloudSync'
+import { fetchCloudDailyStates, fetchCloudDesireRecords, fetchCloudEntries, getCloudMediaUrl, uploadMediaBlob, upsertCloudDailyState, upsertCloudDesireRecord, upsertCloudEntry, deleteCloudDesireRecord } from './cloudSync'
 import { hasSupabaseConfig, supabase } from './supabaseClient'
 import { clearVideoBlobs } from './videoStore'
+import { DesireView } from './DesireView'
 
-type Tab = 'record' | 'calendar' | 'list' | 'companion' | 'settings'
+type Tab = 'record' | 'calendar' | 'list' | 'desire' | 'companion' | 'settings'
 
 type ChatMessage = {
   role: 'assistant' | 'user'
@@ -67,34 +75,11 @@ const companionPersonas: Array<{
   },
 ]
 
-type IconName =
-  | 'bot'
-  | 'calendar'
-  | 'camera'
-  | 'check'
-  | 'chevron-left'
-  | 'chevron-right'
-  | 'download'
-  | 'file'
-  | 'heart'
-  | 'home'
-  | 'list'
-  | 'mic'
-  | 'music'
-  | 'play'
-  | 'plus'
-  | 'search'
-  | 'settings'
-  | 'sparkles'
-  | 'square'
-  | 'trash'
-  | 'upload'
-  | 'video'
-
 const navItems: Array<{ id: Tab; label: string; icon: IconName }> = [
   { id: 'record', label: '记录', icon: 'home' },
   { id: 'calendar', label: '日历', icon: 'calendar' },
   { id: 'list', label: '列表', icon: 'list' },
+  { id: 'desire', label: '邪念', icon: 'flame' },
   { id: 'companion', label: '心灵小蜜', icon: 'bot' },
   { id: 'settings', label: '设置', icon: 'settings' },
 ]
@@ -104,6 +89,7 @@ const rememberedEmailKey = 'self-recorder.remembered-emails.v1'
 function App() {
   const [entries, setEntries] = useState<Entry[]>(() => loadEntries())
   const [dailyStates, setDailyStates] = useState<Record<string, DailyState>>(() => loadDailyStates())
+  const [desireRecords, setDesireRecords] = useState<DesireRecord[]>(() => loadDesireRecords())
   const [activeTab, setActiveTab] = useState<Tab>('record')
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null)
   const [status, setStatus] = useState('')
@@ -115,6 +101,10 @@ function App() {
   useEffect(() => {
     saveDailyStates(dailyStates)
   }, [dailyStates])
+
+  useEffect(() => {
+    saveDesireRecords(desireRecords)
+  }, [desireRecords])
 
   useEffect(() => {
     if (!supabase) return
@@ -132,6 +122,21 @@ function App() {
         }
       } catch {
         if (isMounted) setStatus('读取 Supabase 记录失败，请稍后刷新重试。')
+      }
+    }
+
+    async function loadCloudDesireRecords() {
+      try {
+        const cloudDesireRecords = await fetchCloudDesireRecords()
+        if (!isMounted) return
+        setDesireRecords((current) => {
+          const merged = new Map<string, DesireRecord>()
+          for (const r of cloudDesireRecords) merged.set(r.id, r)
+          for (const r of current) merged.set(r.id, r)
+          return Array.from(merged.values())
+        })
+      } catch {
+        if (isMounted) console.warn('读取 Supabase 邪念记录失败，使用本地数据。')
       }
     }
 
@@ -166,6 +171,7 @@ function App() {
 
       loadCloudEntries()
       loadCloudDailyStates()
+      loadCloudDesireRecords()
     }
 
     restoreSession()
@@ -181,6 +187,7 @@ function App() {
         }
         loadCloudEntries()
         loadCloudDailyStates()
+        loadCloudDesireRecords()
       } else if (event === 'SIGNED_OUT') {
         clearLoginSession()
       }
@@ -212,25 +219,53 @@ function App() {
     setStatus('已保存。你刚刚又多看见了自己一点。')
   }
 
-  async function saveDailyState(dateKey: string, abstinenceStatus?: AbstinenceStatus, habits?: HabitName[]) {
-    const newState: DailyState = {
-      dateKey,
-      abstinenceStatus,
-      habits: habits ?? [],
-      updatedAt: new Date().toISOString(),
+  function addDesireRecord(record: DesireRecord) {
+    setDesireRecords((current) => upsertDesireRecord(current, record))
+    setStatus(record.successful ? '邪念已记录，成功应对！' : '邪念已记录，下次继续努力。')
+
+    if (supabase) {
+      supabase.auth.getSession().then(({ data: sessionData }) => {
+        const userId = sessionData.session?.user.id
+        if (userId) {
+          upsertCloudDesireRecord(record, userId).catch((error) => {
+            console.warn('保存邪念记录到云端失败:', error)
+          })
+        }
+      })
     }
-    setDailyStates((current) => upsertDailyState(current, newState))
+  }
+
+  async function removeDesireRecord(id: string) {
+    setDesireRecords((current) => deleteDesireRecord(current, id))
+    setStatus('邪念记录已删除。')
 
     if (supabase) {
       try {
-        const { data } = await supabase.auth.getSession()
-        const userId = data.session?.user.id
-        if (userId) {
-          await upsertCloudDailyState(newState, userId)
-        }
+        await deleteCloudDesireRecord(id)
       } catch (error) {
-        console.warn('保存每日状态到云端失败:', error)
+        console.warn('删除邪念记录失败:', error)
       }
+    }
+  }
+
+  async function saveDailyState(dateKey: string, habits: HabitName[]) {
+    const newState: DailyState = {
+      dateKey,
+      habits,
+      updatedAt: new Date().toISOString(),
+    }
+    setDailyStates((current) => upsertDailyState(current, newState))
+    setStatus('习惯已保存。')
+
+    if (supabase) {
+      supabase.auth.getSession().then(({ data: sessionData }) => {
+        const userId = sessionData.session?.user.id
+        if (userId) {
+          upsertCloudDailyState(newState, userId).catch((error) => {
+            console.warn('保存每日状态到云端失败:', error)
+          })
+        }
+      })
     }
   }
 
@@ -277,8 +312,9 @@ function App() {
 
       <main className="main-panel">
         {activeTab === 'record' && <RecordView onAddEntry={addEntry} />}
-        {activeTab === 'calendar' && <CalendarView entries={entries} dailyStates={dailyStates} onSelectEntry={setSelectedEntryId} onSaveDailyState={saveDailyState} />}
+        {activeTab === 'calendar' && <CalendarView entries={entries} desireRecords={desireRecords} dailyStates={dailyStates} onSelectEntry={setSelectedEntryId} onSaveDailyState={saveDailyState} />}
         {activeTab === 'list' && <ListView entries={sortedEntries} onSelectEntry={setSelectedEntryId} />}
+        {activeTab === 'desire' && <DesireView desireRecords={desireRecords} onAddRecord={addDesireRecord} onDeleteRecord={removeDesireRecord} />}
         {activeTab === 'companion' && <CompanionView entries={sortedEntries} onOpenSettings={() => setActiveTab('settings')} selectedEntry={selectedEntry} />}
         {activeTab === 'settings' && <SettingsView onClear={clearAll} />}
       </main>
@@ -306,79 +342,6 @@ function App() {
           {status}
         </div>
       )}
-    </div>
-  )
-}
-
-function InterventionDisplay({ content }: { content: InterventionContent }) {
-  const panelClass = `intervention-panel level-${content.uiLevel}`
-
-  return (
-    <div
-      className={panelClass}
-      style={{
-        '--iv-color': content.color,
-        '--iv-bg': content.background,
-      } as CSSProperties}
-    >
-      <div className="iv-header">
-        <div className="iv-stage-title">
-          <span className="iv-level-badge">阶段 {content.level}</span>
-          <h3>{content.stageTitle}</h3>
-        </div>
-        <p className="iv-subtitle">{content.stageSubtitle}</p>
-      </div>
-
-      <div className="iv-core-strategy">
-        <Icon name="sparkles" size={16} />
-        <span>{content.coreStrategy}</span>
-      </div>
-
-      <div className="iv-section iv-buddha">
-        <h4>
-          <Icon name="heart" size={14} />
-          佛号持诵
-        </h4>
-        <div className="iv-chant">{content.buddhaChant}</div>
-        <p className="iv-buddha-name">{content.buddhaName}</p>
-        <p className="iv-meaning">{content.buddhaMeaning}</p>
-      </div>
-
-      <div className="iv-section">
-        <h4>
-          <Icon name="file" size={14} />
-          中医与传统文化警醒
-        </h4>
-        <ul>
-          {content.tcmAdvice.map((item, index) => (
-            <li key={index}>{item}</li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="iv-section">
-        <h4>
-          <Icon name="sparkles" size={14} />
-          警醒语
-        </h4>
-        <ul>
-          {content.warningQuotes.map((item, index) => (
-            <li key={index} className="quote-line">{item}</li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="iv-section iv-actions">
-        <h4>
-          <Icon name="plus" size={14} />
-          立即行动
-        </h4>
-        <ol>
-          {content.actionSteps.map((item, index) => (
-            <li key={index}>{item}</li>
-          ))}
-        </ol>
-      </div>
     </div>
   )
 }
@@ -652,30 +615,33 @@ function saveRememberedEmail(email: string) {
 
 function CalendarView({
   entries,
+  desireRecords,
   dailyStates,
   onSelectEntry,
   onSaveDailyState,
 }: {
   entries: Entry[]
+  desireRecords: DesireRecord[]
   dailyStates: Record<string, DailyState>
   onSelectEntry: (id: string) => void
-  onSaveDailyState: (dateKey: string, abstinenceStatus?: AbstinenceStatus, habits?: HabitName[]) => Promise<void>
+  onSaveDailyState: (dateKey: string, habits: HabitName[]) => Promise<void>
 }) {
   const [anchor, setAnchor] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(toDateKey(new Date()))
-  const [localStatus, setLocalStatus] = useState<AbstinenceStatus | ''>('')
   const [localHabits, setLocalHabits] = useState<HabitName[]>([])
-  const days = useMemo(() => buildCalendarDays(entries, dailyStates, anchor), [entries, dailyStates, anchor])
+  const days = useMemo(() => buildCalendarDays(entries, desireRecords, dailyStates, anchor), [entries, desireRecords, dailyStates, anchor])
   const dayEntries = entries
     .filter((entry) => toDateKey(new Date(entry.createdAt)) === selectedDate)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  const dayDesireRecords = useMemo(
+    () => getDesireRecordsForDate(desireRecords, selectedDate),
+    [desireRecords, selectedDate],
+  )
 
   const selectedDailyState = dailyStates[selectedDate]
-  const effectiveStatus = localStatus || selectedDailyState?.abstinenceStatus || ''
   const effectiveHabits = localHabits.length > 0 ? localHabits : (selectedDailyState?.habits ?? [])
 
   useEffect(() => {
-    setLocalStatus('')
     setLocalHabits([])
   }, [selectedDate])
 
@@ -683,43 +649,20 @@ function CalendarView({
     setAnchor((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1))
   }
 
-  function toggleHabit(habit: HabitName) {
-    setLocalHabits((current) =>
-      current.includes(habit)
-        ? current.filter((h) => h !== habit)
-        : [...current, habit],
-    )
-  }
-
-  async function handleSaveStatus(status: AbstinenceStatus) {
-    setLocalStatus(status)
-    await onSaveDailyState(selectedDate, status, effectiveHabits)
-  }
-
-  async function handleSaveHabits() {
-    const newHabits = localHabits.length > 0 ? localHabits : effectiveHabits
+  async function toggleHabit(habit: HabitName) {
+    const newHabits = effectiveHabits.includes(habit)
+      ? effectiveHabits.filter((h) => h !== habit)
+      : [...effectiveHabits, habit]
     setLocalHabits(newHabits)
-    await onSaveDailyState(selectedDate, effectiveStatus || undefined, newHabits)
+    await onSaveDailyState(selectedDate, newHabits)
   }
-
-  async function handleClearStatus() {
-    setLocalStatus('')
-    await onSaveDailyState(selectedDate, undefined, effectiveHabits)
-  }
-
-  async function handleClearHabits() {
-    setLocalHabits([])
-    await onSaveDailyState(selectedDate, effectiveStatus, [])
-  }
-
-  const dayStatusMeta = effectiveStatus ? getAbstinenceStatusMeta(effectiveStatus) : null
 
   return (
     <section>
       <header className="section-header">
         <div>
           <h1>日历</h1>
-          <p>点击日期，记录每日状态和习惯。看见频率，比追求完美更重要。</p>
+          <p>点击日期，查看当日记录和邪念波动。看见频率，比追求完美更重要。</p>
         </div>
         <div className="calendar-controls">
           <button onClick={() => moveMonth(-1)} type="button" aria-label="上个月">
@@ -732,62 +675,39 @@ function CalendarView({
         </div>
       </header>
 
-      <div className="status-legend" role="list" aria-label="戒色状态图例">
-        {abstinenceStatuses.map((status) => (
-          <span
-            key={status.name}
-            className="legend-item"
-            role="listitem"
-            style={{
-              '--legend-color': status.color,
-              '--legend-bg': status.background,
-            } as CSSProperties}
-          >
-            <i aria-hidden="true" />
-            {status.name}
-          </span>
-        ))}
-      </div>
-
       <div className="calendar-layout">
         <div className="calendar-grid">
           {['日', '一', '二', '三', '四', '五', '六'].map((day) => (
             <span className="weekday" key={day}>{day}</span>
           ))}
           {days.map((day) => {
-            const statusMeta = day.abstinenceStatus ? getAbstinenceStatusMeta(day.abstinenceStatus) : null
             return (
               <button
                 className={[
                   'calendar-day',
                   day.isCurrentMonth ? '' : 'muted',
                   day.count ? 'has-entry' : '',
-                  day.abstinenceStatus ? 'has-status' : '',
+                  day.desireCount > 0 ? 'has-desire' : '',
+                  day.habits.length > 0 ? 'has-habits' : '',
                   selectedDate === day.dateKey ? 'selected' : '',
                 ].join(' ')}
-                data-abstinence-status={day.abstinenceStatus ?? ''}
                 key={day.dateKey}
                 onClick={() => setSelectedDate(day.dateKey)}
                 type="button"
-                style={statusMeta ? {
-                  '--day-status-bg': statusMeta.background,
-                  '--day-status-color': statusMeta.color,
-                  '--day-status-level': statusMeta.level,
-                } as CSSProperties : undefined}
               >
                 <span className="day-number">{day.dayNumber}</span>
-                {day.abstinenceStatus && (
-                  <>
-                    <em className="day-status-label">{day.abstinenceStatus}</em>
-                    <div className="day-status-bar" aria-hidden="true" />
-                  </>
-                )}
                 {day.count > 0 && <strong>{day.count}</strong>}
                 <div className="day-dots">
                   {day.categories.slice(0, 3).map((category) => (
                     <i key={category} />
                   ))}
                 </div>
+                {day.desireCount > 0 && (
+                  <span className="desire-count-indicator" title={`${day.desireCount} 次邪念记录`}>
+                    <Icon name="flame" size={12} />
+                    {day.desireCount}
+                  </span>
+                )}
                 {day.habits.length > 0 && (
                   <div className="day-habits">
                     {day.habits.map((habitName) => {
@@ -796,9 +716,7 @@ function CalendarView({
                         <span
                           key={habitName}
                           className="day-habit-tag"
-                          style={{
-                            '--habit-color': habitMeta?.color ?? '#3d8b7a',
-                          } as CSSProperties}
+                          style={{ '--habit-color': habitMeta?.color ?? '#3d8b7a' } as CSSProperties}
                           title={habitName}
                         >
                           {habitMeta?.icon}
@@ -814,42 +732,6 @@ function CalendarView({
 
         <div className="day-panel">
           <h2>{selectedDate}</h2>
-
-          <div className={`status-panel ${dayStatusMeta ? `level-${dayStatusMeta.uiLevel}` : ''}`}>
-            <div className="status-panel-header">
-              <div>
-                <strong>戒色状态</strong>
-                <span>选择当前阶段，立即获取对应干预内容</span>
-              </div>
-              {dayStatusMeta && (
-                <div className="status-clear" role="button" tabIndex={0} onClick={handleClearStatus}>
-                  清除
-                </div>
-              )}
-            </div>
-
-            <div className="status-stage-picker">
-              {abstinenceStatuses.map((stage) => (
-                <button
-                  key={stage.name}
-                  className={effectiveStatus === stage.name ? 'stage-btn active' : 'stage-btn'}
-                  style={{
-                    '--stage-color': stage.color,
-                    '--stage-bg': stage.background,
-                  } as CSSProperties}
-                  onClick={() => handleSaveStatus(stage.name)}
-                  type="button"
-                >
-                  <span className="stage-level-badge">{stage.level}</span>
-                  <span className="stage-name">{stage.name}</span>
-                </button>
-              ))}
-            </div>
-
-            {dayStatusMeta && (
-              <InterventionDisplay content={dayStatusMeta} />
-            )}
-          </div>
 
           <div className="habits-section">
             <span className="habits-label">今日习惯</span>
@@ -872,16 +754,6 @@ function CalendarView({
                 </label>
               ))}
             </div>
-            {(localHabits.length > 0 || selectedDailyState?.habits?.length) ? (
-              <div className="habits-actions">
-                <button className="status-save-btn" onClick={handleSaveHabits} type="button">
-                  保存习惯
-                </button>
-                <button className="danger-soft" onClick={handleClearHabits} type="button">
-                  清除
-                </button>
-              </div>
-            ) : null}
           </div>
 
           <h3>{selectedDate} 的记录</h3>
@@ -889,6 +761,41 @@ function CalendarView({
             <EmptyState text="这一天还没有记录。空白也是真实状态。" />
           ) : (
             dayEntries.map((entry) => <EntryCard entry={entry} key={entry.id} onSelect={onSelectEntry} />)
+          )}
+
+          {dayDesireRecords.length > 0 && (
+            <>
+              <h3>{selectedDate} 的邪念记录</h3>
+              <div className="day-desire-list">
+                {dayDesireRecords.map((record) => (
+                  <div key={record.id} className={`desire-card intensity-${record.intensity} ${record.successful ? 'success' : 'failure'}`}>
+                    <div className="desire-card-header">
+                      <div className="desire-card-time">
+                        <Icon name="flame" size={14} />
+                        <span>{new Date(record.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      <div className={`desire-card-result ${record.successful ? 'success' : 'failure'}`}>
+                        {record.successful ? '成功' : '失守'}
+                      </div>
+                    </div>
+                    <div className="desire-card-body">
+                      <div className="desire-card-field">
+                        <span className="field-label">诱因</span>
+                        <span className="field-value">{record.trigger}</span>
+                      </div>
+                      <div className="desire-card-field">
+                        <span className="field-label">强度</span>
+                        <span className="field-value">{'●'.repeat(record.intensity)}{'○'.repeat(5 - record.intensity)}</span>
+                      </div>
+                      <div className="desire-card-field">
+                        <span className="field-label">应对</span>
+                        <span className="field-value">{record.copingStrategy}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -913,7 +820,7 @@ function ListView({ entries, onSelectEntry }: { entries: Entry[]; onSelectEntry:
       <div className="filters">
         <label>
           <Icon name="search" size={17} />
-          <input onChange={(event) => setQuery(event.target.value)} placeholder="搜索记录、标签或状态" value={query} />
+          <input onChange={(event) => setQuery(event.target.value)} placeholder="搜索记录或标签" value={query} />
         </label>
         <select onChange={(event) => setType(event.target.value as EntryType | 'all')} value={type}>
           <option value="all">全部类型</option>
@@ -1326,24 +1233,6 @@ function EntryCard({ entry, onSelect }: { entry: Entry; onSelect: (id: string) =
       <p>{entry.aiSummary}</p>
       {entry.type !== 'text' && entry.videoBlobRef && <MediaPlayback entry={entry} />}
       <div className="chip-row">
-        <span className="abstinence-chip" style={{
-          '--status-bg': getAbstinenceStatusMeta(entry.abstinenceStatus).background,
-          '--status-color': getAbstinenceStatusMeta(entry.abstinenceStatus).color,
-        } as CSSProperties}>{entry.abstinenceStatus}</span>
-        {entry.habits.map((habitName) => {
-          const habitMeta = habitOptions.find((h) => h.name === habitName)
-          return (
-            <span
-              key={habitName}
-              className="habit-chip"
-              style={{
-                '--habit-color': habitMeta?.color ?? '#3d8b7a',
-              } as CSSProperties}
-            >
-              {habitMeta?.icon} {habitName}
-            </span>
-          )
-        })}
         <span>{entry.category}</span>
         {entry.tags.slice(0, 4).map((tag) => (
           <span key={tag}>{tag}</span>
@@ -1388,91 +1277,6 @@ function EmptyState({ text }: { text: string }) {
   )
 }
 
-function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
-  const common = {
-    fill: 'none',
-    stroke: 'currentColor',
-    strokeLinecap: 'round' as const,
-    strokeLinejoin: 'round' as const,
-    strokeWidth: 2,
-  }
-  const paths: Record<IconName, ReactNode> = {
-    bot: (
-      <>
-        <rect x="5" y="8" width="14" height="10" rx="3" />
-        <path d="M12 4v4M8.5 13h.01M15.5 13h.01M9 18v2h6v-2" />
-      </>
-    ),
-    calendar: (
-      <>
-        <rect x="3" y="5" width="18" height="16" rx="2" />
-        <path d="M8 3v4M16 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" />
-      </>
-    ),
-    camera: (
-      <>
-        <path d="M4 8h3l1.6-2h6.8L17 8h3v11H4z" />
-        <circle cx="12" cy="13.5" r="3.2" />
-      </>
-    ),
-    check: <path d="M5 12.5l4 4L19 6.5" />,
-    'chevron-left': <path d="M15 18l-6-6 6-6" />,
-    'chevron-right': <path d="M9 6l6 6-6 6" />,
-    download: <path d="M12 4v10m0 0l-4-4m4 4l4-4M5 20h14" />,
-    file: (
-      <>
-        <path d="M6 3h8l4 4v14H6z" />
-        <path d="M14 3v5h5M9 13h6M9 17h6" />
-      </>
-    ),
-    heart: <path d="M4 10a4 4 0 0 1 7-2.6A4 4 0 0 1 18 10c0 2.1-1.5 3.6-3 5l-4 4-4-4c-1.5-1.4-3-2.9-3-5ZM6 13h3l1-2 2 5 2-7 1 4h3" />,
-    home: <path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z" />,
-    list: <path d="M4 6h16M7 12h13M10 18h10" />,
-    mic: (
-      <>
-        <rect x="9" y="3" width="6" height="11" rx="3" />
-        <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
-      </>
-    ),
-    music: <path d="M9 18V6l10-2v12M9 10l10-2M6 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM16 20a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />,
-    play: (
-      <>
-        <circle cx="12" cy="12" r="9" />
-        <path d="M10 8l6 4-6 4z" />
-      </>
-    ),
-    plus: <path d="M12 5v14M5 12h14" />,
-    search: (
-      <>
-        <circle cx="11" cy="11" r="6" />
-        <path d="M16 16l4 4" />
-      </>
-    ),
-    settings: (
-      <>
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a7 7 0 0 0-1.8-1L14.4 3h-4.8L9.3 6a7 7 0 0 0-1.8 1L5.1 6l-2 3.5 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.5 2.4-1a7 7 0 0 0 1.8 1l.3 3h4.8l.3-3a7 7 0 0 0 1.8-1l2.4 1 2-3.5-2-1.5c.1-.3.1-.7.1-1Z" />
-      </>
-    ),
-    sparkles: <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5zM5 15l.8 2.2L8 18l-2.2.8L5 21l-.8-2.2L2 18l2.2-.8zM19 14l.7 1.8 1.8.7-1.8.7L19 19l-.7-1.8-1.8-.7 1.8-.7z" />,
-    square: <rect x="7" y="7" width="10" height="10" rx="1" />,
-    trash: <path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" />,
-    upload: <path d="M12 20V10m0 0l-4 4m4-4l4 4M5 4h14" />,
-    video: (
-      <>
-        <rect x="4" y="7" width="11" height="10" rx="2" />
-        <path d="M15 10l5-3v10l-5-3z" />
-      </>
-    ),
-  }
-
-  return (
-    <svg aria-hidden="true" height={size} viewBox="0 0 24 24" width={size} {...common}>
-      {paths[name]}
-    </svg>
-  )
-}
-
 function buildCompanionReply(input: string, entries: Entry[], selectedEntry?: Entry) {
   const todayKey = toDateKey(new Date())
   const todayEntries = entries.filter((entry) => toDateKey(new Date(entry.createdAt)) === todayKey)
@@ -1486,7 +1290,7 @@ function buildCompanionReply(input: string, entries: Entry[], selectedEntry?: En
 
   if (input.includes('今天') || input.includes('总结')) {
     return todayEntries.length
-      ? `今天你记录了 ${todayEntries.length} 次。最值得留意的是：你没有让感受只停在身体里，而是把它说出来、写下来。下一步可以选一条记录，补一句“我真正需要的是什么”。`
+      ? `今天你记录了 ${todayEntries.length} 次。最值得留意的是：你没有让感受只停在身体里，而是把它说出来、写下来。下一步可以选一条记录，补一句"我真正需要的是什么"。`
       : '今天还没有记录。可以从一句话开始：我现在身体最明显的感觉是什么？'
   }
 

@@ -1,4 +1,4 @@
-import type { AbstinenceStatus, DailyState, Entry, EntryType, HabitName, PromptAnswers, TrainingTrackName } from './domain'
+import type { DailyState, DesireIntensity, DesireRecord, Entry, EntryType, HabitName, PromptAnswers, TrainingTrackName } from './domain'
 import { supabase } from './supabaseClient'
 
 const mediaBucket = 'entry-media'
@@ -9,8 +9,6 @@ type EntryRow = {
   user_id: string
   created_at: string
   type: EntryType
-  abstinence_status: AbstinenceStatus | null
-  habits: HabitName[]
   prompt_answers: PromptAnswers
   body_text: string
   video_blob_ref: string | null
@@ -96,8 +94,6 @@ function entryToRow(entry: Entry, userId: string): EntryRow {
     user_id: userId,
     created_at: entry.createdAt,
     type: entry.type,
-    abstinence_status: entry.abstinenceStatus,
-    habits: entry.habits ?? [],
     prompt_answers: entry.promptAnswers,
     body_text: entry.bodyText,
     video_blob_ref: entry.videoBlobRef ?? null,
@@ -114,8 +110,7 @@ function rowToEntry(row: EntryRow): Entry {
     id: row.id,
     createdAt: row.created_at,
     type: row.type,
-    abstinenceStatus: row.abstinence_status ?? '清心寡欲',
-    habits: row.habits ?? [],
+    habits: [],
     promptAnswers: row.prompt_answers,
     bodyText: row.body_text,
     videoBlobRef: row.video_blob_ref ?? undefined,
@@ -127,10 +122,86 @@ function rowToEntry(row: EntryRow): Entry {
   }
 }
 
+type DesireRecordRow = {
+  id: string
+  user_id: string
+  date_key: string
+  created_at: string
+  trigger: string
+  intensity: DesireIntensity
+  coping_strategy: string
+  successful: boolean
+  insight: string
+  updated_at: string
+}
+
+export async function fetchCloudDesireRecords(): Promise<DesireRecord[]> {
+  if (!supabase) return []
+
+  const { data, error } = await supabase
+    .from('desire_records')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    if (error.message.includes('does not exist')) return []
+    throw error
+  }
+
+  return (data ?? []).map(rowToDesireRecord)
+}
+
+export async function upsertCloudDesireRecord(record: DesireRecord, userId: string) {
+  if (!supabase) throw new Error('还没有配置 Supabase 环境变量。')
+
+  const row: DesireRecordRow = {
+    id: record.id,
+    user_id: userId,
+    date_key: record.dateKey,
+    created_at: record.createdAt,
+    trigger: record.trigger,
+    intensity: record.intensity,
+    coping_strategy: record.copingStrategy,
+    successful: record.successful,
+    insight: record.insight,
+    updated_at: record.updatedAt,
+  }
+
+  const { error } = await supabase
+    .from('desire_records')
+    .upsert(row, { onConflict: 'id' })
+
+  if (error) throw error
+}
+
+export async function deleteCloudDesireRecord(id: string) {
+  if (!supabase) throw new Error('还没有配置 Supabase 环境变量。')
+
+  const { error } = await supabase
+    .from('desire_records')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+}
+
+function rowToDesireRecord(row: DesireRecordRow): DesireRecord {
+  return {
+    id: row.id,
+    dateKey: row.date_key,
+    createdAt: row.created_at,
+    trigger: row.trigger,
+    intensity: row.intensity,
+    copingStrategy: row.coping_strategy,
+    successful: row.successful,
+    insight: row.insight ?? '',
+    updatedAt: row.updated_at,
+  }
+}
+
 type DailyStateRow = {
   date_key: string
   user_id: string
-  abstinence_status: AbstinenceStatus | null
   habits: HabitName[]
   updated_at: string
 }
@@ -151,12 +222,10 @@ export async function fetchCloudDailyStates(): Promise<Record<string, DailyState
   for (const row of (data ?? []) as DailyStateRow[]) {
     result[row.date_key] = {
       dateKey: row.date_key,
-      abstinenceStatus: row.abstinence_status ?? undefined,
       habits: row.habits ?? [],
       updatedAt: row.updated_at,
     }
   }
-
   return result
 }
 
@@ -166,8 +235,7 @@ export async function upsertCloudDailyState(state: DailyState, userId: string) {
   const row: DailyStateRow = {
     date_key: state.dateKey,
     user_id: userId,
-    abstinence_status: state.abstinenceStatus ?? null,
-    habits: state.habits ?? [],
+    habits: state.habits,
     updated_at: state.updatedAt,
   }
 
