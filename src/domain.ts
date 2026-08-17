@@ -116,6 +116,7 @@ export type DailyState = {
 
 const dailyStateStorageKey = 'self-recorder.daily-states.v1'
 const desireStorageKey = 'self-recorder.desire-records.v1'
+const pendingDesireSyncKey = 'self-recorder.desire-pending-sync.v1'
 
 export function loadDailyStates(): Record<string, DailyState> {
   if (typeof localStorage === 'undefined') return {}
@@ -163,6 +164,37 @@ export function loadDesireRecords(): DesireRecord[] {
 
 export function saveDesireRecords(records: DesireRecord[]) {
   localStorage.setItem(desireStorageKey, JSON.stringify(records))
+}
+
+export function loadPendingDesireSync(): DesireRecord[] {
+  if (typeof localStorage === 'undefined') return []
+
+  try {
+    const raw = localStorage.getItem(pendingDesireSyncKey)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? (parsed as DesireRecord[]) : []
+  } catch {
+    return []
+  }
+}
+
+export function savePendingDesireSync(records: DesireRecord[]) {
+  localStorage.setItem(pendingDesireSyncKey, JSON.stringify(records))
+}
+
+export function addPendingDesireSync(record: DesireRecord): DesireRecord[] {
+  const pending = loadPendingDesireSync()
+  const next = upsertDesireRecord(pending, record)
+  savePendingDesireSync(next)
+  return next
+}
+
+export function removePendingDesireSync(id: string): DesireRecord[] {
+  const pending = loadPendingDesireSync()
+  const next = deleteDesireRecord(pending, id)
+  savePendingDesireSync(next)
+  return next
 }
 
 export function createDesireRecord(input: Omit<DesireRecord, 'id' | 'createdAt' | 'updatedAt' | 'dateKey'> & { createdAt?: Date }): DesireRecord {

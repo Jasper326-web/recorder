@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import './App.css'
 import { Icon, type IconName } from './AppIcons'
 import {
+  addPendingDesireSync,
   buildCalendarDays,
   clearEntries,
   createDesireRecord,
@@ -16,7 +17,9 @@ import {
   loadDailyStates,
   loadDesireRecords,
   loadEntries,
+  loadPendingDesireSync,
   mergeEntries,
+  removePendingDesireSync,
   saveDailyStates,
   saveDesireRecords,
   saveEntries,
@@ -135,6 +138,33 @@ function App() {
           for (const r of current) merged.set(r.id, r)
           return Array.from(merged.values())
         })
+
+        const pending = loadPendingDesireSync()
+        if (pending.length > 0) {
+          const { data: sessionData } = await client.auth.getSession()
+          const userId = sessionData.session?.user.id
+          if (userId) {
+            for (const record of pending) {
+              try {
+                await upsertCloudDesireRecord(record, userId)
+                removePendingDesireSync(record.id)
+                if (isMounted) {
+                  setDesireRecords((current) => upsertDesireRecord(current, record))
+                }
+              } catch {
+                break
+              }
+            }
+            if (isMounted) {
+              const remainingPending = loadPendingDesireSync()
+              if (remainingPending.length === 0) {
+                setStatus(`云端同步完成，${pending.length} 条待同步邪念记录已上传。`)
+              } else {
+                setStatus(`${pending.length - remainingPending.length}/${pending.length} 条邪念记录已同步，其余将继续重试。`)
+              }
+            }
+          }
+        }
       } catch {
         if (isMounted) console.warn('读取 Supabase 邪念记录失败，使用本地数据。')
       }
@@ -227,9 +257,16 @@ function App() {
       supabase.auth.getSession().then(({ data: sessionData }) => {
         const userId = sessionData.session?.user.id
         if (userId) {
-          upsertCloudDesireRecord(record, userId).catch((error) => {
+          upsertCloudDesireRecord(record, userId).then(() => {
+            removePendingDesireSync(record.id)
+          }).catch((error) => {
             console.warn('保存邪念记录到云端失败:', error)
+            addPendingDesireSync(record)
+            setStatus('本地已保存，云端同步失败，将在网络恢复后自动重试。')
           })
+        } else {
+          addPendingDesireSync(record)
+          setStatus('本地已保存，请先登录后自动同步到云端。')
         }
       })
     }
@@ -237,6 +274,7 @@ function App() {
 
   async function removeDesireRecord(id: string) {
     setDesireRecords((current) => deleteDesireRecord(current, id))
+    removePendingDesireSync(id)
     setStatus('邪念记录已删除。')
 
     if (supabase) {

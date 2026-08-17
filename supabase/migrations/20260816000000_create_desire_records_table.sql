@@ -13,10 +13,20 @@ CREATE TABLE IF NOT EXISTS public.desire_records (
 
 ALTER TABLE public.desire_records ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can access own desire records" ON public.desire_records
-  FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'desire_records'
+    AND policyname = 'Users can access own desire records'
+  ) THEN
+    CREATE POLICY "Users can access own desire records" ON public.desire_records
+      FOR ALL
+      USING (auth.uid() = user_id)
+      WITH CHECK (auth.uid() = user_id);
+  END IF;
+END
+$$;
 
 CREATE INDEX IF NOT EXISTS idx_desire_records_user_id ON public.desire_records(user_id);
 CREATE INDEX IF NOT EXISTS idx_desire_records_date_key ON public.desire_records(date_key);
