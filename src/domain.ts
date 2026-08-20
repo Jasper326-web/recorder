@@ -12,6 +12,59 @@ export const habitOptions: Array<{
   { name: 'iOS编程课', icon: '💻', color: '#6b5b7a' },
 ]
 
+export type MicroHabitName =
+  | '不看擦边软色情'
+  | '不独处'
+  | '不蹭下体'
+  | '16+8饮食'
+  | '干净饮食'
+  | '减少手机依赖'
+  | '清醒后马上起床'
+  | '记录日记'
+  | '11点前关灯'
+  | '不玩游戏'
+
+export const microHabitOptions: Array<{
+  name: MicroHabitName
+  icon: string
+  category: '防护' | '身体' | '纪律' | '成长'
+}> = [
+  { name: '不看擦边软色情', icon: '🚫', category: '防护' },
+  { name: '不独处', icon: '🚶', category: '防护' },
+  { name: '不蹭下体', icon: '🛡️', category: '防护' },
+  { name: '16+8饮食', icon: '🍽️', category: '身体' },
+  { name: '干净饮食', icon: '🥗', category: '身体' },
+  { name: '减少手机依赖', icon: '📵', category: '纪律' },
+  { name: '清醒后马上起床', icon: '⏰', category: '纪律' },
+  { name: '记录日记', icon: '✍️', category: '成长' },
+  { name: '11点前关灯', icon: '🌙', category: '纪律' },
+  { name: '不玩游戏', icon: '🎮', category: '防护' },
+]
+
+export type MicroHabitState = {
+  dateKey: string
+  habits: MicroHabitName[]
+  score: number
+  updatedAt: string
+}
+
+export const microHabitTierNames = {
+  TIER_3: '破局',
+  TIER_5: '自持',
+  TIER_8: '清净',
+} as const
+
+export function getMicroHabitTier(score: number): keyof typeof microHabitTierNames | null {
+  if (score >= 8) return 'TIER_8'
+  if (score >= 5) return 'TIER_5'
+  if (score >= 3) return 'TIER_3'
+  return null
+}
+
+export function calcMicroHabitScore(habits: MicroHabitName[]): number {
+  return habits.length
+}
+
 export type TrainingTrackName =
   | '情绪控制力'
   | '生活觉知力'
@@ -541,4 +594,59 @@ function mergeTags(first: string[], second: string[]) {
 
 function unique<T>(items: T[]): T[] {
   return Array.from(new Set(items))
+}
+
+const microHabitStorageKey = 'self-recorder.micro-habit-states.v1'
+
+export function loadMicroHabitStates(): Record<string, MicroHabitState> {
+  if (typeof localStorage === 'undefined') return {}
+
+  try {
+    const raw = localStorage.getItem(microHabitStorageKey)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    if (typeof parsed === 'object' && parsed !== null) {
+      return parsed as Record<string, MicroHabitState>
+    }
+    return {}
+  } catch {
+    return {}
+  }
+}
+
+export function saveMicroHabitStates(states: Record<string, MicroHabitState>) {
+  localStorage.setItem(microHabitStorageKey, JSON.stringify(states))
+}
+
+export function upsertMicroHabitState(states: Record<string, MicroHabitState>, state: MicroHabitState): Record<string, MicroHabitState> {
+  return {
+    ...states,
+    [state.dateKey]: {
+      ...states[state.dateKey],
+      ...state,
+      updatedAt: new Date().toISOString(),
+    },
+  }
+}
+
+export function getMicroHabitStatesForRange(
+  states: Record<string, MicroHabitState>,
+  startDate: Date,
+  endDate: Date,
+): Array<{ dateKey: string; score: number; habits: MicroHabitName[] }> {
+  const startKey = toDateKey(startDate)
+  const endKey = toDateKey(endDate)
+  const result: Array<{ dateKey: string; score: number; habits: MicroHabitName[] }> = []
+  const cursor = new Date(startDate)
+  while (cursor <= endDate) {
+    const key = toDateKey(cursor)
+    const state = states[key]
+    result.push({
+      dateKey: key,
+      score: state?.score ?? 0,
+      habits: state?.habits ?? [],
+    })
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return result
 }

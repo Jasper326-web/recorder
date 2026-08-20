@@ -17,18 +17,21 @@ import {
   loadDailyStates,
   loadDesireRecords,
   loadEntries,
+  loadMicroHabitStates,
   loadPendingDesireSync,
   mergeEntries,
   removePendingDesireSync,
   saveDailyStates,
   saveDesireRecords,
   saveEntries,
+  saveMicroHabitStates,
   toDateKey,
   trainingTracks,
   upsertDailyState,
   upsertDesireRecord,
+  upsertMicroHabitState,
 } from './domain'
-import type { DailyState, DesireIntensity, DesireRecord, Entry, EntryType, HabitName, TrainingTrackName } from './domain'
+import type { DailyState, DesireIntensity, DesireRecord, Entry, EntryType, HabitName, MicroHabitState, TrainingTrackName } from './domain'
 import {
   clearLoginSession,
   enforceLoginSessionExpiry,
@@ -37,12 +40,13 @@ import {
   markLoginSession,
   SESSION_DAYS,
 } from './authSession'
-import { fetchCloudDailyStates, fetchCloudDesireRecords, fetchCloudEntries, getCloudMediaUrl, uploadMediaBlob, upsertCloudDailyState, upsertCloudDesireRecord, upsertCloudEntry, deleteCloudDesireRecord } from './cloudSync'
+import { fetchCloudDailyStates, fetchCloudDesireRecords, fetchCloudMicroHabitStates, fetchCloudEntries, getCloudMediaUrl, uploadMediaBlob, upsertCloudDailyState, upsertCloudDesireRecord, upsertCloudMicroHabitState, upsertCloudEntry, deleteCloudDesireRecord } from './cloudSync'
 import { hasSupabaseConfig, supabase } from './supabaseClient'
 import { clearVideoBlobs } from './videoStore'
 import { DesireView } from './DesireView'
+import { MicroHabitView } from './MicroHabitView'
 
-type Tab = 'record' | 'calendar' | 'list' | 'desire' | 'companion' | 'settings'
+type Tab = 'record' | 'calendar' | 'list' | 'desire' | 'microHabit' | 'companion' | 'settings'
 
 type ChatMessage = {
   role: 'assistant' | 'user'
@@ -83,6 +87,7 @@ const navItems: Array<{ id: Tab; label: string; icon: IconName }> = [
   { id: 'calendar', label: '日历', icon: 'calendar' },
   { id: 'list', label: '列表', icon: 'list' },
   { id: 'desire', label: '邪念', icon: 'flame' },
+  { id: 'microHabit', label: '微习惯', icon: 'target' },
   { id: 'companion', label: '心灵小蜜', icon: 'bot' },
   { id: 'settings', label: '设置', icon: 'settings' },
 ]
@@ -93,6 +98,7 @@ function App() {
   const [entries, setEntries] = useState<Entry[]>(() => loadEntries())
   const [dailyStates, setDailyStates] = useState<Record<string, DailyState>>(() => loadDailyStates())
   const [desireRecords, setDesireRecords] = useState<DesireRecord[]>(() => loadDesireRecords())
+  const [microHabitStates, setMicroHabitStates] = useState<Record<string, MicroHabitState>>(() => loadMicroHabitStates())
   const [activeTab, setActiveTab] = useState<Tab>('record')
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null)
   const [status, setStatus] = useState('')
@@ -108,6 +114,10 @@ function App() {
   useEffect(() => {
     saveDesireRecords(desireRecords)
   }, [desireRecords])
+
+  useEffect(() => {
+    saveMicroHabitStates(microHabitStates)
+  }, [microHabitStates])
 
   useEffect(() => {
     if (!supabase) return
@@ -180,6 +190,16 @@ function App() {
       }
     }
 
+    async function loadCloudMicroHabitStates() {
+      try {
+        const cloudStates = await fetchCloudMicroHabitStates()
+        if (!isMounted) return
+        setMicroHabitStates((current) => ({ ...cloudStates, ...current }))
+      } catch {
+        if (isMounted) console.warn('读取 Supabase 微习惯状态失败，使用本地数据。')
+      }
+    }
+
     async function restoreSession() {
       const { data } = await client.auth.getSession()
       if (!data.session) return
@@ -202,6 +222,7 @@ function App() {
       loadCloudEntries()
       loadCloudDailyStates()
       loadCloudDesireRecords()
+      loadCloudMicroHabitStates()
     }
 
     restoreSession()
@@ -218,6 +239,7 @@ function App() {
         loadCloudEntries()
         loadCloudDailyStates()
         loadCloudDesireRecords()
+        loadCloudMicroHabitStates()
       } else if (event === 'SIGNED_OUT') {
         clearLoginSession()
       }
@@ -307,6 +329,22 @@ function App() {
     }
   }
 
+  async function saveMicroHabitState(state: MicroHabitState) {
+    setMicroHabitStates((current) => upsertMicroHabitState(current, state))
+    setStatus(`微习惯已记录：${state.score}/10 分`)
+
+    if (supabase) {
+      supabase.auth.getSession().then(({ data: sessionData }) => {
+        const userId = sessionData.session?.user.id
+        if (userId) {
+          upsertCloudMicroHabitState(state, userId).catch((error) => {
+            console.warn('保存微习惯状态到云端失败:', error)
+          })
+        }
+      })
+    }
+  }
+
   async function clearAll() {
     clearEntries()
     await clearVideoBlobs()
@@ -353,6 +391,7 @@ function App() {
         {activeTab === 'calendar' && <CalendarView entries={entries} desireRecords={desireRecords} dailyStates={dailyStates} onSelectEntry={setSelectedEntryId} onSaveDailyState={saveDailyState} />}
         {activeTab === 'list' && <ListView entries={sortedEntries} onSelectEntry={setSelectedEntryId} />}
         {activeTab === 'desire' && <DesireView desireRecords={desireRecords} onAddRecord={addDesireRecord} onDeleteRecord={removeDesireRecord} />}
+        {activeTab === 'microHabit' && <MicroHabitView states={microHabitStates} onSaveState={saveMicroHabitState} />}
         {activeTab === 'companion' && <CompanionView entries={sortedEntries} onOpenSettings={() => setActiveTab('settings')} selectedEntry={selectedEntry} />}
         {activeTab === 'settings' && <SettingsView onClear={clearAll} />}
       </main>

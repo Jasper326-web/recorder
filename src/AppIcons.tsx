@@ -21,6 +21,7 @@ export type IconName =
   | 'settings'
   | 'sparkles'
   | 'square'
+  | 'target'
   | 'trash'
   | 'upload'
   | 'video'
@@ -94,6 +95,13 @@ export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
     ),
     sparkles: <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5zM5 15l.8 2.2L8 18l-2.2.8L5 21l-.8-2.2L2 18l2.2-.8zM19 14l.7 1.8 1.8.7-1.8.7L19 19l-.7-1.8-1.8-.7 1.8-.7z" />,
     square: <rect x="7" y="7" width="10" height="10" rx="1" />,
+    target: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <circle cx="12" cy="12" r="5" />
+        <circle cx="12" cy="12" r="1.5" />
+      </>
+    ),
     trash: <path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7V4h6v3" />,
     upload: <path d="M12 20V10m0 0l-4 4m4-4l4 4M5 4h14" />,
     video: (
