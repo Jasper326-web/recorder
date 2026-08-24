@@ -1,0 +1,852 @@
+{
+  "schemaVersion": "1.0",
+  "skillProvenance": {
+    "name": "solo-design",
+    "version": "2026.07.22.00.00.00",
+    "version_source": "skill-release-manifest.json",
+    "schema_version": "1.0",
+    "release": "prompt-base-cloud-ssot-migration",
+    "read_status": "ok"
+  },
+  "project": {
+    "name": "待办清单小程序",
+    "path": "/Users/zhangqiyang/Desktop/recorder/todo-dark-miniapp",
+    "operation": "create",
+    "deviceType": "mobile",
+    "resolvedLane": "complex_html_page",
+    "intentProfile": {
+      "caseFamily": "free_exploration",
+      "sourceType": "none",
+      "graphicStrategy": null,
+      "multiPage": true,
+      "targetDevice": "mobile",
+      "themeMode": "dark",
+      "productType": "mini-program"
+    },
+    "selectedIntentWorkflowRead": true,
+    "contextRequirementsLoaded": [
+      {
+        "path": "shared-runtime/runtime-boundaries/lane-runtime-contracts.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-08-08T00:00:00.000Z"
+      },
+      {
+        "path": "shared-runtime/agent-dispatch-runtime/lane-dispatch-index.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-08-08T00:00:00.000Z"
+      },
+      {
+        "path": "shared-runtime/agent-dispatch-runtime/shared-page-rendering-kernel.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-08-08T00:00:00.000Z"
+      },
+      {
+        "path": "delivery-quality/page-rendering-quality-gate.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-08-08T00:00:00.000Z"
+      },
+      {
+        "path": "delivery-quality/design-artifact-validation.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-08-08T00:00:00.000Z"
+      },
+      {
+        "path": "delivery-quality/delivery-evidence-contract.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-08-08T00:00:00.000Z"
+      },
+      {
+        "path": "visual-experience/visual-experience-guidelines.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-08-08T00:00:00.000Z"
+      },
+      {
+        "path": "visual-experience/visual-checkpoint-protocol.md",
+        "readStatus": "loaded",
+        "bodyRead": true,
+        "recordedAt": "2026-08-08T00:00:00.000Z"
+      }
+    ],
+    "contextReadScope": {
+      "selectedIntentWorkflow": "intent-workflows/intent-project-complex-build/INTENT_WORKFLOW.md",
+      "phaseRunbooksRead": [
+        "intent-workflows/intent-project-complex-build/00-requirement-and-style-intake.md",
+        "intent-workflows/intent-project-complex-build/02-page-composition.md",
+        "intent-workflows/intent-project-complex-build/03-interaction-validation-delivery.md"
+      ],
+      "notes": "multi-page mobile mini-program mockup with dark mode and closed-loop task flow"
+    },
+    "readScopeLedger": [
+      {
+        "path": "intent-workflows/intent-project-complex-build/INTENT_WORKFLOW.md",
+        "reason": "lane workflow",
+        "ownerLane": "complex_html_page"
+      },
+      {
+        "path": "intent-workflows/intent-project-complex-build/00-requirement-and-style-intake.md",
+        "reason": "project initialization",
+        "ownerLane": "complex_html_page"
+      },
+      {
+        "path": "intent-workflows/intent-project-complex-build/02-page-composition.md",
+        "reason": "dispatch preflight and generation tree",
+        "ownerLane": "complex_html_page"
+      },
+      {
+        "path": "intent-workflows/intent-project-complex-build/03-interaction-validation-delivery.md",
+        "reason": "wiring and validation",
+        "ownerLane": "complex_html_page"
+      },
+      {
+        "actor": "page-sub-agent",
+        "lane": "complex_html_page",
+        "path": "intent-workflows/intent-project-complex-build/complex-page-runtime.md",
+        "reason": "page runtime guide",
+        "scopeClass": "page-runtime",
+        "declaredBeforeRead": true,
+        "recordedAt": "2026-08-08T12:27:43.922Z",
+        "nodeId": "page-calendar-home",
+        "htmlSrc": "pages/calendar-home.html"
+      },
+      {
+        "actor": "page-sub-agent",
+        "lane": "complex_html_page",
+        "path": "intent-workflows/intent-project-complex-build/complex-page-dispatch-contract.md",
+        "reason": "dispatch contract",
+        "scopeClass": "dispatch-contract",
+        "declaredBeforeRead": true,
+        "recordedAt": "2026-08-08T12:27:43.922Z",
+        "nodeId": "page-calendar-home",
+        "htmlSrc": "pages/calendar-home.html"
+      }
+    ],
+    "dispatchPreflightManifest": [
+      {
+        "recorded_at": "2026-08-08T12:27:43.922Z",
+        "generatedBy": "build-page-dispatch-manifest.mjs",
+        "packetType": "ComplexPagePacket",
+        "laneContract": {
+          "resolvedLane": "complex_html_page",
+          "packetType": "ComplexPagePacket",
+          "pageRuntimeGuide": "intent-workflows/intent-project-complex-build/complex-page-runtime.md",
+          "dispatchContract": "intent-workflows/intent-project-complex-build/complex-page-dispatch-contract.md"
+        },
+        "taskLinePresent": true,
+        "outputPathPresent": true,
+        "sharedTemplate": "intent-workflows/intent-project-complex-build/complex-page-runtime.md",
+        "nodeId": "page-calendar-home",
+        "htmlSrc": "pages/calendar-home.html",
+        "supplementaryReads": [],
+        "allowedWritePaths": [
+          "pages/calendar-home.html",
+          "assets/"
+        ],
+        "forbiddenWriteRoots": [
+          "*.design",
+          "runtime-orchestration-summary.json",
+          "validation-report.json",
+          "finish-readiness-report.json",
+          "restore-contract-report.json",
+          "page-generation-summary.json"
+        ],
+        "toolPolicy": {
+          "todoWriteAllowed": false,
+          "validationScriptsAllowed": false,
+          "previewAllowed": false,
+          "helperScriptsAllowed": false,
+          "designFileWriteAllowed": false,
+          "allowedWritePaths": [
+            "pages/calendar-home.html",
+            "assets/"
+          ]
+        },
+        "skillRuntime": {
+          "skillDir": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design",
+          "deterministicToolDir": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling",
+          "toolPaths": {
+            "applyHtmlHeadContract": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/apply-html-head-contract.mjs",
+            "recordDispatchCompletion": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/record-dispatch-completion.mjs",
+            "buildPageDispatchManifest": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/build-page-dispatch-manifest.mjs",
+            "validateDesignWorkspace": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/validate-design-workspace.mjs",
+            "validateFinishReadiness": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/validate-finish-readiness.mjs",
+            "validateRestoreContract": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/validate-restore-contract.mjs"
+          },
+          "requiredForPageSubAgent": [
+            "applyHtmlHeadContract",
+            "recordDispatchCompletion"
+          ],
+          "pathInjection": "absolute",
+          "pathContract": "Do not use {SKILL_DIR} placeholders inside Page Sub-Agent packets; use toolPaths.* absolute paths.",
+          "commandTemplates": {
+            "recordDispatchCompletion": "node '/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/record-dispatch-completion.mjs' '/Users/zhangqiyang/Desktop/recorder/todo-dark-miniapp' --node-id='page-calendar-home' --html-src='pages/calendar-home.html' --status=completed --changed-files=<comma-separated-project-relative-files> --trace-digest=<main-agent-runtime-trace-digest> --tool-ledger-json=<tool-ledger-json-or-file>"
+          }
+        },
+        "cssFilePath": "/Users/zhangqiyang/Desktop/recorder/todo-dark-miniapp/colors_and_type.css",
+        "htmlFilePath": "/Users/zhangqiyang/Desktop/recorder/todo-dark-miniapp/pages/calendar-home.html",
+        "brandPrefix": "todoapp",
+        "aestheticsMode": "free-explore",
+        "toolDisciplineBlockPresent": true,
+        "fillHtmlHeadCommand": "node '/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/apply-html-head-contract.mjs' '/Users/zhangqiyang/Desktop/recorder/todo-dark-miniapp/colors_and_type.css' '/Users/zhangqiyang/Desktop/recorder/todo-dark-miniapp/pages/calendar-home.html' --title='日历待办' --lang='zh-CN' --prefix='todoapp'",
+        "headFillMode": "skeleton-first",
+        "viewportMode": "document-scroll",
+        "completionSchemaExpected": "full",
+        "restoreFields": null,
+        "restoreContractStatus": null,
+        "restoreCompactPacket": null,
+        "deterministicCommands": null,
+        "sourceAuthorityLock": null,
+        "preDispatchFileHashes": {
+          "todo-dark-miniapp.design": "e645fb0c6e780ed5247816cc0197685b66df34e335c4046c494e6ba266701038"
+        },
+        "contextPreflight": {
+          "workflowPath": "intent-workflows/intent-project-complex-build/INTENT_WORKFLOW.md",
+          "requiredContextFiles": [
+            "shared-runtime/runtime-boundaries/lane-runtime-contracts.md",
+            "shared-runtime/agent-dispatch-runtime/lane-dispatch-index.md",
+            "shared-runtime/agent-dispatch-runtime/shared-page-rendering-kernel.md",
+            "delivery-quality/page-rendering-quality-gate.md",
+            "delivery-quality/design-artifact-validation.md",
+            "delivery-quality/delivery-evidence-contract.md",
+            "visual-experience/visual-experience-guidelines.md",
+            "visual-experience/visual-checkpoint-protocol.md"
+          ],
+          "optionalContextFiles": [],
+          "passed": true
+        },
+        "pageSliceOnly": true,
+        "requiredFieldsPresent": true,
+        "missingFields": [],
+        "fillHtmlHeadCommandValid": true,
+        "mobileNavigation": {
+          "required": false,
+          "appliesToThisPage": false,
+          "canonicalHtmlIncluded": false,
+          "missingFields": []
+        },
+        "persistedToSummary": true,
+        "taskQueryAudited": false,
+        "proofSource": "summary-only",
+        "largeWorkflowFilesInTaskQuery": null
+      },
+      {
+        "recorded_at": "2026-08-08T12:27:43.922Z",
+        "generatedBy": "build-page-dispatch-manifest.mjs",
+        "packetType": "ComplexPagePacket",
+        "laneContract": {
+          "resolvedLane": "complex_html_page",
+          "packetType": "ComplexPagePacket",
+          "pageRuntimeGuide": "intent-workflows/intent-project-complex-build/complex-page-runtime.md",
+          "dispatchContract": "intent-workflows/intent-project-complex-build/complex-page-dispatch-contract.md"
+        },
+        "taskLinePresent": true,
+        "outputPathPresent": true,
+        "sharedTemplate": "intent-workflows/intent-project-complex-build/complex-page-runtime.md",
+        "nodeId": "page-task-editor",
+        "htmlSrc": "pages/task-editor.html",
+        "supplementaryReads": [],
+        "allowedWritePaths": [
+          "pages/task-editor.html",
+          "assets/"
+        ],
+        "forbiddenWriteRoots": [
+          "*.design",
+          "runtime-orchestration-summary.json",
+          "validation-report.json",
+          "finish-readiness-report.json",
+          "restore-contract-report.json",
+          "page-generation-summary.json"
+        ],
+        "toolPolicy": {
+          "todoWriteAllowed": false,
+          "validationScriptsAllowed": false,
+          "previewAllowed": false,
+          "helperScriptsAllowed": false,
+          "designFileWriteAllowed": false,
+          "allowedWritePaths": [
+            "pages/task-editor.html",
+            "assets/"
+          ]
+        },
+        "skillRuntime": {
+          "skillDir": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design",
+          "deterministicToolDir": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling",
+          "toolPaths": {
+            "applyHtmlHeadContract": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/apply-html-head-contract.mjs",
+            "recordDispatchCompletion": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/record-dispatch-completion.mjs",
+            "buildPageDispatchManifest": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/build-page-dispatch-manifest.mjs",
+            "validateDesignWorkspace": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/validate-design-workspace.mjs",
+            "validateFinishReadiness": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/validate-finish-readiness.mjs",
+            "validateRestoreContract": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/validate-restore-contract.mjs"
+          },
+          "requiredForPageSubAgent": [
+            "applyHtmlHeadContract",
+            "recordDispatchCompletion"
+          ],
+          "pathInjection": "absolute",
+          "pathContract": "Do not use {SKILL_DIR} placeholders inside Page Sub-Agent packets; use toolPaths.* absolute paths.",
+          "commandTemplates": {
+            "recordDispatchCompletion": "node '/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/record-dispatch-completion.mjs' '/Users/zhangqiyang/Desktop/recorder/todo-dark-miniapp' --node-id='page-task-editor' --html-src='pages/task-editor.html' --status=completed --changed-files=<comma-separated-project-relative-files> --trace-digest=<main-agent-runtime-trace-digest> --tool-ledger-json=<tool-ledger-json-or-file>"
+          }
+        },
+        "cssFilePath": "/Users/zhangqiyang/Desktop/recorder/todo-dark-miniapp/colors_and_type.css",
+        "htmlFilePath": "/Users/zhangqiyang/Desktop/recorder/todo-dark-miniapp/pages/task-editor.html",
+        "brandPrefix": "todoapp",
+        "aestheticsMode": "free-explore",
+        "toolDisciplineBlockPresent": true,
+        "fillHtmlHeadCommand": "node '/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/apply-html-head-contract.mjs' '/Users/zhangqiyang/Desktop/recorder/todo-dark-miniapp/colors_and_type.css' '/Users/zhangqiyang/Desktop/recorder/todo-dark-miniapp/pages/task-editor.html' --title='新增任务' --lang='zh-CN' --prefix='todoapp'",
+        "headFillMode": "skeleton-first",
+        "viewportMode": "document-scroll",
+        "completionSchemaExpected": "full",
+        "restoreFields": null,
+        "restoreContractStatus": null,
+        "restoreCompactPacket": null,
+        "deterministicCommands": null,
+        "sourceAuthorityLock": null,
+        "preDispatchFileHashes": {
+          "todo-dark-miniapp.design": "e645fb0c6e780ed5247816cc0197685b66df34e335c4046c494e6ba266701038"
+        },
+        "contextPreflight": {
+          "workflowPath": "intent-workflows/intent-project-complex-build/INTENT_WORKFLOW.md",
+          "requiredContextFiles": [
+            "shared-runtime/runtime-boundaries/lane-runtime-contracts.md",
+            "shared-runtime/agent-dispatch-runtime/lane-dispatch-index.md",
+            "shared-runtime/agent-dispatch-runtime/shared-page-rendering-kernel.md",
+            "delivery-quality/page-rendering-quality-gate.md",
+            "delivery-quality/design-artifact-validation.md",
+            "delivery-quality/delivery-evidence-contract.md",
+            "visual-experience/visual-experience-guidelines.md",
+            "visual-experience/visual-checkpoint-protocol.md"
+          ],
+          "optionalContextFiles": [],
+          "passed": true
+        },
+        "pageSliceOnly": true,
+        "requiredFieldsPresent": true,
+        "missingFields": [],
+        "fillHtmlHeadCommandValid": true,
+        "mobileNavigation": {
+          "required": false,
+          "appliesToThisPage": false,
+          "canonicalHtmlIncluded": false,
+          "missingFields": []
+        },
+        "persistedToSummary": true,
+        "taskQueryAudited": false,
+        "proofSource": "summary-only",
+        "largeWorkflowFilesInTaskQuery": null
+      },
+      {
+        "recorded_at": "2026-08-08T12:27:43.922Z",
+        "generatedBy": "build-page-dispatch-manifest.mjs",
+        "packetType": "ComplexPagePacket",
+        "laneContract": {
+          "resolvedLane": "complex_html_page",
+          "packetType": "ComplexPagePacket",
+          "pageRuntimeGuide": "intent-workflows/intent-project-complex-build/complex-page-runtime.md",
+          "dispatchContract": "intent-workflows/intent-project-complex-build/complex-page-dispatch-contract.md"
+        },
+        "taskLinePresent": true,
+        "outputPathPresent": true,
+        "sharedTemplate": "intent-workflows/intent-project-complex-build/complex-page-runtime.md",
+        "nodeId": "page-task-stats",
+        "htmlSrc": "pages/task-stats.html",
+        "supplementaryReads": [],
+        "allowedWritePaths": [
+          "pages/task-stats.html",
+          "assets/"
+        ],
+        "forbiddenWriteRoots": [
+          "*.design",
+          "runtime-orchestration-summary.json",
+          "validation-report.json",
+          "finish-readiness-report.json",
+          "restore-contract-report.json",
+          "page-generation-summary.json"
+        ],
+        "toolPolicy": {
+          "todoWriteAllowed": false,
+          "validationScriptsAllowed": false,
+          "previewAllowed": false,
+          "helperScriptsAllowed": false,
+          "designFileWriteAllowed": false,
+          "allowedWritePaths": [
+            "pages/task-stats.html",
+            "assets/"
+          ]
+        },
+        "skillRuntime": {
+          "skillDir": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design",
+          "deterministicToolDir": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling",
+          "toolPaths": {
+            "applyHtmlHeadContract": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/apply-html-head-contract.mjs",
+            "recordDispatchCompletion": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/record-dispatch-completion.mjs",
+            "buildPageDispatchManifest": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/build-page-dispatch-manifest.mjs",
+            "validateDesignWorkspace": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/validate-design-workspace.mjs",
+            "validateFinishReadiness": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/validate-finish-readiness.mjs",
+            "validateRestoreContract": "/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/validate-restore-contract.mjs"
+          },
+          "requiredForPageSubAgent": [
+            "applyHtmlHeadContract",
+            "recordDispatchCompletion"
+          ],
+          "pathInjection": "absolute",
+          "pathContract": "Do not use {SKILL_DIR} placeholders inside Page Sub-Agent packets; use toolPaths.* absolute paths.",
+          "commandTemplates": {
+            "recordDispatchCompletion": "node '/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/record-dispatch-completion.mjs' '/Users/zhangqiyang/Desktop/recorder/todo-dark-miniapp' --node-id='page-task-stats' --html-src='pages/task-stats.html' --status=completed --changed-files=<comma-separated-project-relative-files> --trace-digest=<main-agent-runtime-trace-digest> --tool-ledger-json=<tool-ledger-json-or-file>"
+          }
+        },
+        "cssFilePath": "/Users/zhangqiyang/Desktop/recorder/todo-dark-miniapp/colors_and_type.css",
+        "htmlFilePath": "/Users/zhangqiyang/Desktop/recorder/todo-dark-miniapp/pages/task-stats.html",
+        "brandPrefix": "todoapp",
+        "aestheticsMode": "free-explore",
+        "toolDisciplineBlockPresent": true,
+        "fillHtmlHeadCommand": "node '/Users/zhangqiyang/.trae/builtin/design/default/skills/solo-design/shared-runtime/deterministic-tooling/apply-html-head-contract.mjs' '/Users/zhangqiyang/Desktop/recorder/todo-dark-miniapp/colors_and_type.css' '/Users/zhangqiyang/Desktop/recorder/todo-dark-miniapp/pages/task-stats.html' --title='任务统计' --lang='zh-CN' --prefix='todoapp' --charts",
+        "headFillMode": "skeleton-first",
+        "viewportMode": "document-scroll",
+        "completionSchemaExpected": "full",
+        "restoreFields": null,
+        "restoreContractStatus": null,
+        "restoreCompactPacket": null,
+        "deterministicCommands": null,
+        "sourceAuthorityLock": null,
+        "preDispatchFileHashes": {
+          "todo-dark-miniapp.design": "e645fb0c6e780ed5247816cc0197685b66df34e335c4046c494e6ba266701038"
+        },
+        "contextPreflight": {
+          "workflowPath": "intent-workflows/intent-project-complex-build/INTENT_WORKFLOW.md",
+          "requiredContextFiles": [
+            "shared-runtime/runtime-boundaries/lane-runtime-contracts.md",
+            "shared-runtime/agent-dispatch-runtime/lane-dispatch-index.md",
+            "shared-runtime/agent-dispatch-runtime/shared-page-rendering-kernel.md",
+            "delivery-quality/page-rendering-quality-gate.md",
+            "delivery-quality/design-artifact-validation.md",
+            "delivery-quality/delivery-evidence-contract.md",
+            "visual-experience/visual-experience-guidelines.md",
+            "visual-experience/visual-checkpoint-protocol.md"
+          ],
+          "optionalContextFiles": [],
+          "passed": true
+        },
+        "pageSliceOnly": true,
+        "requiredFieldsPresent": true,
+        "missingFields": [],
+        "fillHtmlHeadCommandValid": true,
+        "mobileNavigation": {
+          "required": false,
+          "appliesToThisPage": false,
+          "canonicalHtmlIncluded": false,
+          "missingFields": []
+        },
+        "persistedToSummary": true,
+        "taskQueryAudited": false,
+        "proofSource": "summary-only",
+        "largeWorkflowFilesInTaskQuery": null
+      }
+    ],
+    "validationRunDiscipline": {
+      "maxFullValidationRuns": 2,
+      "softWarningsTriggerRepair": false,
+      "blockingRepairMode": "targeted-once",
+      "forbiddenRepairTriggers": [
+        "soft-warning-only",
+        "provenance-warning-only",
+        "style-warning-only"
+      ]
+    },
+    "validationHistory": [],
+    "validationRepairLedger": [],
+    "validationSnapshot": {},
+    "artifactReadinessEvidence": {},
+    "lowValueCallWatchdog": {
+      "applies": true,
+      "noProgressSignals": [
+        "no_tool_call",
+        "no_artifact_diff",
+        "no_structured_decision"
+      ],
+      "noProgressNextAction": "enter_readiness_or_blocked_summary",
+      "recordedAt": "2026-08-08T00:00:00.000Z"
+    },
+    "visualQualityCheckpoints": [
+      {
+        "checkpointId": "vq-anchor",
+        "dimension": "visual-anchor",
+        "expected": "以月周切换与主 CTA 建立任务首页的第一视线锚点，编辑页以厚质感保存按钮承接动作，统计页以完成率环图作为主视觉焦点",
+        "evidenceTarget": "pages/calendar-home.html#primary-region"
+      },
+      {
+        "checkpointId": "vq-hierarchy",
+        "dimension": "information-hierarchy",
+        "expected": "标题、日期上下文、任务信息、辅助标签与唯一主操作层级清晰，所有次级操作都弱化为文字或图标",
+        "evidenceTarget": "pages/task-editor.html#content"
+      },
+      {
+        "checkpointId": "vq-structure",
+        "dimension": "composition-structure",
+        "expected": "深灰底上使用分层 surface 和 14px 卡片圆角，通过纵向节奏与留白避免信息拥挤，图表与列表区保持稳定节奏",
+        "evidenceTarget": "pages/task-stats.html#layout"
+      },
+      {
+        "checkpointId": "vq-implementation",
+        "dimension": "implementation-strategy",
+        "expected": "全部页面用可编辑 HTML/CSS 实现，小程序顶部胶囊统一，统计图使用 canvas，卡片和按钮依赖单品牌色与柔和阴影系统",
+        "evidenceTarget": "pages/task-stats.html#implementation"
+      }
+    ],
+    "designRead": "待办清单小程序 / 效率工具 / 中性克制深色 / 信息清晰 / 避免霓虹与 AI 模板感",
+    "designDials": {
+      "layoutVariance": 2,
+      "motionIntensity": 2,
+      "visualDensity": 3
+    },
+    "cssPreflightEvidence": {
+      "command": "node apply-html-head-contract.mjs colors_and_type.css .preflight/preflight.html --title=Preflight --lang=zh-CN --prefix=todoapp --theme=dark",
+      "outputPath": ".preflight/preflight.html",
+      "exitCode": 0,
+      "themeClass": "dark",
+      "brandPrefix": "todoapp",
+      "status": "passed"
+    },
+    "mobileNavigation": {
+      "applies": false
+    },
+    "sharedProjectShellContract": {
+      "deviceType": "mobile",
+      "themeMode": "dark",
+      "miniProgramChrome": {
+        "applies": true,
+        "capsuleVisible": true,
+        "titleAlign": "center"
+      },
+      "typographySystem": {
+        "title": "Inter + Noto Sans SC sans",
+        "body": "Inter + Noto Sans SC sans",
+        "bodySize": 15
+      },
+      "radiusScale": {
+        "sm": 4,
+        "md": 8,
+        "lg": 14,
+        "full": 9999
+      },
+      "surfaceDepthModel": {
+        "bg": "#111319",
+        "surface": "#171a22",
+        "surface2": "#202531",
+        "staticShadowAlphaMax": 0.05
+      },
+      "ctaStyle": {
+        "primaryHue": "indigo-soft",
+        "primaryButton": "single thick CTA per page"
+      },
+      "continuityAnchors": [
+        "小程序顶栏与胶囊结构一致",
+        "深灰底与分层 surface 一致",
+        "主 CTA 均为厚质感高对比按钮",
+        "圆角 14px 卡片与 14px 大按钮一致",
+        "标题字重与二级说明层级一致"
+      ]
+    },
+    "generationTree": {
+      "root": {
+        "nodeId": "gen-project-shell",
+        "kind": "project-shell",
+        "pageIds": [
+          "page-calendar-home",
+          "page-task-editor",
+          "page-task-stats"
+        ],
+        "output": "partials/project-shell.html",
+        "sharedRegions": [
+          "mini-program-top-chrome",
+          "dark-surface-language",
+          "type-scale",
+          "radius-scale",
+          "spacing-rhythm",
+          "cta-treatment"
+        ],
+        "privateRegions": [],
+        "mutableSlots": [
+          "page-title",
+          "page-subtitle",
+          "page-body",
+          "page-footer"
+        ],
+        "status": "planned",
+        "children": [
+          {
+            "nodeId": "gen-page-calendar-home",
+            "kind": "page-leaf",
+            "pageIds": [
+              "page-calendar-home"
+            ],
+            "output": "pages/calendar-home.html",
+            "sharedRegions": [
+              "mini-program-top-chrome",
+              "dark-surface-language",
+              "page-footer"
+            ],
+            "privateRegions": [
+              "calendar-switcher",
+              "task-card-groups",
+              "new-task-cta"
+            ],
+            "mutableSlots": [
+              "page-title",
+              "page-subtitle",
+              "page-body",
+              "page-footer"
+            ],
+            "status": "planned",
+            "children": []
+          },
+          {
+            "nodeId": "gen-page-task-editor",
+            "kind": "page-leaf",
+            "pageIds": [
+              "page-task-editor"
+            ],
+            "output": "pages/task-editor.html",
+            "sharedRegions": [
+              "mini-program-top-chrome",
+              "dark-surface-language",
+              "page-footer"
+            ],
+            "privateRegions": [
+              "form-fields",
+              "tag-and-priority",
+              "reminder-toggle",
+              "save-cta"
+            ],
+            "mutableSlots": [
+              "page-title",
+              "page-subtitle",
+              "page-body",
+              "page-footer"
+            ],
+            "status": "planned",
+            "children": []
+          },
+          {
+            "nodeId": "gen-page-task-stats",
+            "kind": "page-leaf",
+            "pageIds": [
+              "page-task-stats"
+            ],
+            "output": "pages/task-stats.html",
+            "sharedRegions": [
+              "mini-program-top-chrome",
+              "dark-surface-language",
+              "page-footer"
+            ],
+            "privateRegions": [
+              "completion-ring",
+              "bar-charts",
+              "category-list",
+              "archive-entry"
+            ],
+            "mutableSlots": [
+              "page-title",
+              "page-subtitle",
+              "page-body",
+              "page-footer"
+            ],
+            "status": "planned",
+            "children": []
+          }
+        ]
+      }
+    },
+    "phaseReadiness": {
+      "intake": "done",
+      "cssPreflight": "done",
+      "pageComposition": "planned",
+      "interactionValidation": "pending"
+    }
+  },
+  "designSource": {
+    "operatingMode": "free-explore",
+    "cssFilePath": "colors_and_type.css",
+    "brandPrefix": "todoapp",
+    "styleDefinitionBrief": "深灰分层底色配单一柔和蓝紫强调，圆润控件与厚实主按钮统一三页手机端效率工具体验。",
+    "styleConstraints": {
+      "radiusMax": 16,
+      "spacingBase": 8,
+      "fontSizeBody": 15,
+      "fontSizeMin": 12,
+      "controlHeightDefault": 48,
+      "controlHeightLarge": 56,
+      "staticShadowAlphaMax": 0.05
+    },
+    "actualTokenNameReference": [
+      "--todoapp-bg",
+      "--todoapp-surface",
+      "--todoapp-surface-2",
+      "--todoapp-ink",
+      "--todoapp-ink-2",
+      "--todoapp-ink-3",
+      "--todoapp-line",
+      "--todoapp-brand",
+      "--todoapp-brand-strong",
+      "--todoapp-brand-soft",
+      "--todoapp-brand-ink",
+      "--todoapp-state-success",
+      "--todoapp-state-warning",
+      "--todoapp-state-error",
+      "--todoapp-state-info",
+      "--todoapp-radius-small",
+      "--todoapp-radius-medium",
+      "--todoapp-radius-large",
+      "--todoapp-radius-full",
+      "--todoapp-ring"
+    ],
+    "forbiddenInventedComponents": [],
+    "allowedComponents": [],
+    "iconAssets": null
+  },
+  "pages": [
+    {
+      "nodeId": "page-calendar-home",
+      "title": "日历待办",
+      "htmlSrc": "pages/calendar-home.html",
+      "pageIndex": 1,
+      "generationNodeId": "gen-page-calendar-home",
+      "deviceType": "mobile",
+      "viewportMode": "document-scroll",
+      "pageType": "task-driven",
+      "miniProgramStyle": true,
+      "chartsRequired": false,
+      "visualNorthStar": "把日历切换与时间分组的待办卡片放在同一视线链路里，让用户快速浏览并一键进入新增任务。",
+      "continuityAnchors": [
+        "深灰分层 surface",
+        "单品牌主 CTA",
+        "14px 卡片圆角",
+        "小程序胶囊顶栏"
+      ],
+      "qualityRisks": [
+        "calendar-density",
+        "mobile-scroll-rhythm",
+        "bottom-cta-overlap"
+      ],
+      "pageRequirements": "月/周历切换、真实示例任务数据、按时间分组的待办卡片、完成勾选归档提示、底部新建待办主 CTA。",
+      "componentPlan": [],
+      "imagePlan": [],
+      "mobileNavigationActiveKey": null
+    },
+    {
+      "nodeId": "page-task-editor",
+      "title": "新增任务",
+      "htmlSrc": "pages/task-editor.html",
+      "pageIndex": 2,
+      "generationNodeId": "gen-page-task-editor",
+      "deviceType": "mobile",
+      "viewportMode": "document-scroll",
+      "pageType": "task-driven",
+      "miniProgramStyle": true,
+      "chartsRequired": false,
+      "visualNorthStar": "通过分组表单和厚实保存按钮，把新建任务流程做成一条低认知负担的深色输入体验。",
+      "continuityAnchors": [
+        "深灰分层 surface",
+        "单品牌主 CTA",
+        "14px 卡片圆角",
+        "小程序胶囊顶栏"
+      ],
+      "qualityRisks": [
+        "form-density",
+        "cta-emphasis"
+      ],
+      "pageRequirements": "包含标题、日期时间、标签、优先级、定时提醒开关、真实示例内容与唯一保存主 CTA。",
+      "componentPlan": [],
+      "imagePlan": [],
+      "mobileNavigationActiveKey": null
+    },
+    {
+      "nodeId": "page-task-stats",
+      "title": "任务统计",
+      "htmlSrc": "pages/task-stats.html",
+      "pageIndex": 3,
+      "generationNodeId": "gen-page-task-stats",
+      "deviceType": "mobile",
+      "viewportMode": "document-scroll",
+      "pageType": "information-dense",
+      "miniProgramStyle": true,
+      "chartsRequired": true,
+      "visualNorthStar": "用完成率环图作为第一焦点，再以周/月柱状图和分类列表承接归档后的反馈闭环。",
+      "continuityAnchors": [
+        "深灰分层 surface",
+        "单品牌主 CTA",
+        "14px 卡片圆角",
+        "小程序胶囊顶栏"
+      ],
+      "qualityRisks": [
+        "chart-labels",
+        "information-density",
+        "mobile-overlap"
+      ],
+      "pageRequirements": "展示完成率环形图、周/月柱状图切换、分类完成列表、已归档入口与真实统计数据。",
+      "componentPlan": [],
+      "imagePlan": [],
+      "mobileNavigationActiveKey": null
+    }
+  ],
+  "assets": [],
+  "wiringPlan": [
+    {
+      "sourcePage": "page-calendar-home",
+      "domId": "cta-task-editor",
+      "targetPage": "page-task-editor",
+      "targetHtml": "calendar-home.html",
+      "hideEdge": false,
+      "transitionLabel": "新建待办"
+    },
+    {
+      "sourcePage": "page-calendar-home",
+      "domId": "link-task-stats",
+      "targetPage": "page-task-stats",
+      "targetHtml": "calendar-home.html",
+      "hideEdge": false,
+      "transitionLabel": "查看统计"
+    }
+  ],
+  "hiddenInteractionPlan": [
+    {
+      "sourcePage": "page-task-editor",
+      "domId": "back-calendar-home",
+      "targetPage": "page-calendar-home",
+      "targetHtml": "task-editor.html",
+      "hideEdge": true,
+      "transitionLabel": "返回首页"
+    },
+    {
+      "sourcePage": "page-task-editor",
+      "domId": "cta-save-task",
+      "targetPage": "page-calendar-home",
+      "targetHtml": "task-editor.html",
+      "hideEdge": true,
+      "transitionLabel": "保存任务"
+    },
+    {
+      "sourcePage": "page-task-stats",
+      "domId": "back-calendar-home",
+      "targetPage": "page-calendar-home",
+      "targetHtml": "task-stats.html",
+      "hideEdge": true,
+      "transitionLabel": "返回首页"
+    },
+    {
+      "sourcePage": "page-calendar-home",
+      "domId": "link-archive-stats",
+      "targetPage": "page-task-stats",
+      "targetHtml": "calendar-home.html",
+      "hideEdge": true,
+      "transitionLabel": "查看归档"
+    }
+  ]
+}

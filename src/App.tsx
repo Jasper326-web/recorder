@@ -18,6 +18,7 @@ import {
   loadDesireRecords,
   loadEntries,
   loadMicroHabitStates,
+  microHabitOptions,
   loadPendingDesireSync,
   mergeEntries,
   removePendingDesireSync,
@@ -31,7 +32,7 @@ import {
   upsertDesireRecord,
   upsertMicroHabitState,
 } from './domain'
-import type { DailyState, DesireIntensity, DesireRecord, Entry, EntryType, HabitName, MicroHabitState, TrainingTrackName } from './domain'
+import type { DailyState, DesireIntensity, DesireRecord, Entry, EntryType, HabitName, MicroHabitName, MicroHabitState, TrainingTrackName } from './domain'
 import {
   clearLoginSession,
   enforceLoginSessionExpiry,
@@ -43,7 +44,7 @@ import {
 import { fetchCloudDailyStates, fetchCloudDesireRecords, fetchCloudMicroHabitStates, fetchCloudEntries, getCloudMediaUrl, uploadMediaBlob, upsertCloudDailyState, upsertCloudDesireRecord, upsertCloudMicroHabitState, upsertCloudEntry, deleteCloudDesireRecord } from './cloudSync'
 import { hasSupabaseConfig, supabase } from './supabaseClient'
 import { clearVideoBlobs } from './videoStore'
-import { DesireView } from './DesireView'
+import { DesireForm, DesireView } from './DesireView'
 import { MicroHabitView } from './MicroHabitView'
 
 type Tab = 'record' | 'calendar' | 'list' | 'desire' | 'microHabit' | 'companion' | 'settings'
@@ -101,6 +102,7 @@ function App() {
   const [microHabitStates, setMicroHabitStates] = useState<Record<string, MicroHabitState>>(() => loadMicroHabitStates())
   const [activeTab, setActiveTab] = useState<Tab>('record')
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null)
+  const [prefillDate, setPrefillDate] = useState<string | null>(null)
   const [status, setStatus] = useState('')
 
   useEffect(() => {
@@ -387,8 +389,8 @@ function App() {
       </aside>
 
       <main className="main-panel">
-        {activeTab === 'record' && <RecordView onAddEntry={addEntry} />}
-        {activeTab === 'calendar' && <CalendarView entries={entries} desireRecords={desireRecords} dailyStates={dailyStates} onSelectEntry={setSelectedEntryId} onSaveDailyState={saveDailyState} />}
+        {activeTab === 'record' && <RecordView onAddEntry={addEntry} prefillDate={prefillDate} onPrefillDateConsumed={() => setPrefillDate(null)} />}
+        {activeTab === 'calendar' && <CalendarView entries={entries} desireRecords={desireRecords} dailyStates={dailyStates} microHabitStates={microHabitStates} onSelectEntry={setSelectedEntryId} onSaveDailyState={saveDailyState} onAddDesireRecord={addDesireRecord} onSaveMicroHabitState={saveMicroHabitState} onGoToRecord={(dateKey) => { setSelectedEntryId(null); setActiveTab('record'); setTimeout(() => setPrefillDate(dateKey), 0); }} />}
         {activeTab === 'list' && <ListView entries={sortedEntries} onSelectEntry={setSelectedEntryId} />}
         {activeTab === 'desire' && <DesireView desireRecords={desireRecords} onAddRecord={addDesireRecord} onDeleteRecord={removeDesireRecord} />}
         {activeTab === 'microHabit' && <MicroHabitView states={microHabitStates} onSaveState={saveMicroHabitState} />}
@@ -423,7 +425,7 @@ function App() {
   )
 }
 
-function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
+function RecordView({ onAddEntry, prefillDate, onPrefillDateConsumed }: { onAddEntry: (entry: Entry) => void; prefillDate: string | null; onPrefillDateConsumed: () => void }) {
   const [type, setType] = useState<EntryType>('text')
   const [bodyText, setBodyText] = useState('')
   const [error, setError] = useState('')
@@ -535,15 +537,21 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
         return
       }
 
+      const createdAt = prefillDate
+        ? new Date(prefillDate + 'T' + new Date().toTimeString().split(' ')[0])
+        : undefined
+
       const baseEntry = createEntry({
         type,
         bodyText,
+        createdAt,
       })
       const videoBlobRef = type !== 'text' && recordedBlob ? await uploadMediaBlob(baseEntry.id, userId, recordedBlob, type) : undefined
       const entry = videoBlobRef ? { ...baseEntry, videoBlobRef } : baseEntry
 
       await upsertCloudEntry(entry, userId)
       onAddEntry(entry)
+      if (prefillDate) onPrefillDateConsumed()
       setBodyText('')
       setRecordedBlob(null)
       if (recordedUrl) URL.revokeObjectURL(recordedUrl)
@@ -558,6 +566,12 @@ function RecordView({ onAddEntry }: { onAddEntry: (entry: Entry) => void }) {
 
   return (
     <section className="record-view">
+      {prefillDate && (
+        <div className="prefill-notice">
+          <Icon name="calendar" size={16} />
+          <span>正在为 <strong>{prefillDate}</strong> 补记日志</span>
+        </div>
+      )}
       <header className="section-header">
         <div>
           <h1>开始记录</h1>
@@ -694,18 +708,28 @@ function CalendarView({
   entries,
   desireRecords,
   dailyStates,
+  microHabitStates,
   onSelectEntry,
   onSaveDailyState,
+  onAddDesireRecord,
+  onSaveMicroHabitState,
+  onGoToRecord,
 }: {
   entries: Entry[]
   desireRecords: DesireRecord[]
   dailyStates: Record<string, DailyState>
+  microHabitStates: Record<string, MicroHabitState>
   onSelectEntry: (id: string) => void
   onSaveDailyState: (dateKey: string, habits: HabitName[]) => Promise<void>
+  onAddDesireRecord: (record: DesireRecord) => void
+  onSaveMicroHabitState: (state: MicroHabitState) => Promise<void>
+  onGoToRecord: (dateKey: string) => void
 }) {
   const [anchor, setAnchor] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(toDateKey(new Date()))
   const [localHabits, setLocalHabits] = useState<HabitName[]>([])
+  const [localMicroHabits, setLocalMicroHabits] = useState<MicroHabitName[]>([])
+  const [supplementMode, setSupplementMode] = useState<'none' | 'desire' | 'microHabit'>('none')
   const days = useMemo(() => buildCalendarDays(entries, desireRecords, dailyStates, anchor), [entries, desireRecords, dailyStates, anchor])
   const dayEntries = entries
     .filter((entry) => toDateKey(new Date(entry.createdAt)) === selectedDate)
@@ -717,9 +741,13 @@ function CalendarView({
 
   const selectedDailyState = dailyStates[selectedDate]
   const effectiveHabits = localHabits.length > 0 ? localHabits : (selectedDailyState?.habits ?? [])
+  const selectedMicroState = microHabitStates[selectedDate]
+  const effectiveMicroHabits = localMicroHabits.length > 0 ? localMicroHabits : (selectedMicroState?.habits ?? [])
 
   useEffect(() => {
     setLocalHabits([])
+    setLocalMicroHabits([])
+    setSupplementMode('none')
   }, [selectedDate])
 
   function moveMonth(offset: number) {
@@ -732,6 +760,20 @@ function CalendarView({
       : [...effectiveHabits, habit]
     setLocalHabits(newHabits)
     await onSaveDailyState(selectedDate, newHabits)
+  }
+
+  async function toggleMicroHabit(habit: MicroHabitName) {
+    const newHabits = effectiveMicroHabits.includes(habit)
+      ? effectiveMicroHabits.filter((h) => h !== habit)
+      : [...effectiveMicroHabits, habit]
+    setLocalMicroHabits(newHabits)
+    const newState: MicroHabitState = {
+      dateKey: selectedDate,
+      habits: newHabits,
+      score: newHabits.length,
+      updatedAt: new Date().toISOString(),
+    }
+    await onSaveMicroHabitState(newState)
   }
 
   return (
@@ -832,6 +874,74 @@ function CalendarView({
               ))}
             </div>
           </div>
+
+          <div className="supplement-actions">
+            <span className="supplement-label">补记操作</span>
+            <div className="supplement-buttons">
+              <button
+                type="button"
+                className={`supplement-btn ${supplementMode === 'desire' ? 'active' : ''}`}
+                onClick={() => setSupplementMode(supplementMode === 'desire' ? 'none' : 'desire')}
+              >
+                <Icon name="flame" size={15} />
+                补记邪念
+              </button>
+              <button
+                type="button"
+                className={`supplement-btn ${supplementMode === 'microHabit' ? 'active' : ''}`}
+                onClick={() => setSupplementMode(supplementMode === 'microHabit' ? 'none' : 'microHabit')}
+              >
+                <Icon name="target" size={15} />
+                补记微习惯
+              </button>
+              <button
+                type="button"
+                className="supplement-btn"
+                onClick={() => onGoToRecord(selectedDate)}
+              >
+                <Icon name="file" size={15} />
+                补记日志
+              </button>
+            </div>
+          </div>
+
+          {supplementMode === 'desire' && (
+            <div className="supplement-form supplement-desire-form">
+              <DesireForm
+                onSubmit={(record) => {
+                  onAddDesireRecord(record)
+                  setSupplementMode('none')
+                }}
+                onCancel={() => setSupplementMode('none')}
+                selectedDate={selectedDate}
+              />
+            </div>
+          )}
+
+          {supplementMode === 'microHabit' && (
+            <div className="supplement-microhabits">
+              <span className="supplement-section-title">微习惯（{effectiveMicroHabits.length}/10）</span>
+              <div className="microhabits-checkbox-row">
+                {microHabitOptions.map((habit) => (
+                  <label
+                    key={habit.name}
+                    className={`habit-checkbox micro-habit ${effectiveMicroHabits.includes(habit.name) ? 'checked' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={effectiveMicroHabits.includes(habit.name)}
+                      onChange={() => toggleMicroHabit(habit.name)}
+                    />
+                    <span className="habit-checkmark">
+                      {effectiveMicroHabits.includes(habit.name) && <Icon name="check" size={14} />}
+                    </span>
+                    <span className="habit-icon">{habit.icon}</span>
+                    <span className="habit-name">{habit.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           <h3>{selectedDate} 的记录</h3>
           {dayEntries.length === 0 ? (

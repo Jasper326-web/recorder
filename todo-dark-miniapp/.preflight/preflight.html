@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preflight</title>
+    <style id="theme-vars">
+:root {
+  --todoapp-bg: #f6f7fb;
+  --todoapp-surface: #ffffff;
+  --todoapp-surface-2: #eef2ff;
+  --todoapp-ink: #141821;
+  --todoapp-ink-2: #5d6577;
+  --todoapp-ink-3: #8b93a6;
+  --todoapp-line: rgba(20, 24, 33, 0.08);
+  --todoapp-brand: #6f7cff;
+  --todoapp-brand-strong: #5666f6;
+  --todoapp-brand-soft: rgba(111, 124, 255, 0.12);
+  --todoapp-brand-ink: #ffffff;
+  --todoapp-state-success: #67c58a;
+  --todoapp-state-warning: #e7b35b;
+  --todoapp-state-error: #ef7d7d;
+  --todoapp-state-info: #79b6ff;
+  --todoapp-background: var(--todoapp-bg);
+  --todoapp-foreground: var(--todoapp-ink);
+  --todoapp-card: var(--todoapp-surface);
+  --todoapp-card-foreground: var(--todoapp-ink);
+  --todoapp-popover: var(--todoapp-surface);
+  --todoapp-popover-foreground: var(--todoapp-ink);
+  --todoapp-primary: var(--todoapp-brand);
+  --todoapp-primary-foreground: var(--todoapp-brand-ink);
+  --todoapp-muted: var(--todoapp-surface-2);
+  --todoapp-muted-foreground: var(--todoapp-ink-2);
+  --todoapp-border: var(--todoapp-line);
+  --todoapp-input: var(--todoapp-line);
+  --todoapp-ring: rgba(111, 124, 255, 0.45);
+  --todoapp-radius-small: 4px;
+  --todoapp-radius-medium: 8px;
+  --todoapp-radius-large: 14px;
+  --todoapp-radius-full: 9999px;
+  --background: var(--todoapp-background);
+  --foreground: var(--todoapp-foreground);
+  --card: var(--todoapp-card);
+  --card-foreground: var(--todoapp-card-foreground);
+  --popover: var(--todoapp-popover);
+  --popover-foreground: var(--todoapp-popover-foreground);
+  --primary: var(--todoapp-primary);
+  --primary-foreground: var(--todoapp-primary-foreground);
+  --muted: var(--todoapp-muted);
+  --muted-foreground: var(--todoapp-muted-foreground);
+  --border: var(--todoapp-border);
+  --input: var(--todoapp-input);
+  --ring: var(--todoapp-ring);
+  --radius-small: var(--todoapp-radius-small);
+  --radius-medium: var(--todoapp-radius-medium);
+  --radius-large: var(--todoapp-radius-large);
+  --radius-full: var(--todoapp-radius-full);
+  --font-sans: "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-title: "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: "SFMono-Regular", "JetBrains Mono", "Fira Code", monospace;
+  --text-display: clamp(32px, 7vw, 40px);
+  --text-h1: 28px;
+  --text-h2: 22px;
+  --text-h3: 18px;
+  --text-body: 15px;
+  --text-caption: 12px;
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.03), 0 10px 24px rgba(15, 23, 42, 0.04);
+  --shadow-float: 0 16px 36px rgba(15, 23, 42, 0.18);
+}
+
+html.dark,
+body.dark,
+.dark {
+  --todoapp-bg: #111319;
+  --todoapp-surface: #171a22;
+  --todoapp-surface-2: #202531;
+  --todoapp-ink: #f4f6fb;
+  --todoapp-ink-2: #aab2c5;
+  --todoapp-ink-3: #7e879c;
+  --todoapp-line: rgba(255, 255, 255, 0.08);
+  --todoapp-brand: #7b88ff;
+  --todoapp-brand-strong: #8d98ff;
+  --todoapp-brand-soft: rgba(123, 136, 255, 0.16);
+  --todoapp-brand-ink: #f9fbff;
+  --todoapp-state-success: #72c89a;
+  --todoapp-state-warning: #ebb464;
+  --todoapp-state-error: #f28f8f;
+  --todoapp-state-info: #7cbcff;
+  --todoapp-background: var(--todoapp-bg);
+  --todoapp-foreground: var(--todoapp-ink);
+  --todoapp-card: var(--todoapp-surface);
+  --todoapp-card-foreground: var(--todoapp-ink);
+  --todoapp-popover: var(--todoapp-surface);
+  --todoapp-popover-foreground: var(--todoapp-ink);
+  --todoapp-primary: var(--todoapp-brand);
+  --todoapp-primary-foreground: var(--todoapp-brand-ink);
+  --todoapp-muted: var(--todoapp-surface-2);
+  --todoapp-muted-foreground: var(--todoapp-ink-2);
+  --todoapp-border: var(--todoapp-line);
+  --todoapp-input: var(--todoapp-line);
+  --todoapp-ring: rgba(123, 136, 255, 0.52);
+  --background: var(--todoapp-background);
+  --foreground: var(--todoapp-foreground);
+  --card: var(--todoapp-card);
+  --card-foreground: var(--todoapp-card-foreground);
+  --popover: var(--todoapp-popover);
+  --popover-foreground: var(--todoapp-popover-foreground);
+  --primary: var(--todoapp-primary);
+  --primary-foreground: var(--todoapp-primary-foreground);
+  --muted: var(--todoapp-muted);
+  --muted-foreground: var(--todoapp-muted-foreground);
+  --border: var(--todoapp-border);
+  --input: var(--todoapp-input);
+  --ring: var(--todoapp-ring);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 24px rgba(0, 0, 0, 0.05);
+  --shadow-float: 0 20px 40px rgba(0, 0, 0, 0.28);
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.1/dist/index.global.js"></script>
+    <script src="https://unpkg.com/lucide@1.8.0/dist/umd/lucide.min.js"></script>
+    <style type="text/tailwindcss">
+  @theme inline {
+    --color-background: var(--todoapp-background);
+    --color-foreground: var(--todoapp-foreground);
+    --color-card: var(--todoapp-card);
+    --color-card-foreground: var(--todoapp-card-foreground);
+    --color-popover: var(--todoapp-popover);
+    --color-popover-foreground: var(--todoapp-popover-foreground);
+    --color-primary: var(--todoapp-primary);
+    --color-primary-foreground: var(--todoapp-primary-foreground);
+    --color-muted: var(--todoapp-muted);
+    --color-muted-foreground: var(--todoapp-muted-foreground);
+    --color-border: var(--todoapp-border);
+    --color-input: var(--todoapp-input);
+    --color-ring: var(--todoapp-ring);
+    --radius-sm: var(--todoapp-radius-small);
+    --radius-md: var(--todoapp-radius-medium);
+    --radius-lg: var(--todoapp-radius-large);
+  }
+  @layer base {
+    body { background: var(--todoapp-background); color: var(--todoapp-foreground); }
+    td, th { @apply break-words; word-break: break-all; word-break: auto-phrase; }
+    th { @apply whitespace-nowrap; }
+  }
+    </style>
+    <style id="semantic-token-fallback">
+      .bg-background { background-color: var(--todoapp-background); }
+      .text-background { color: var(--todoapp-background); }
+      .border-background { border-color: var(--todoapp-background); }
+      .ring-background { --tw-ring-color: var(--todoapp-background); }
+      .bg-foreground { background-color: var(--todoapp-foreground); }
+      .text-foreground { color: var(--todoapp-foreground); }
+      .border-foreground { border-color: var(--todoapp-foreground); }
+      .ring-foreground { --tw-ring-color: var(--todoapp-foreground); }
+      .bg-card { background-color: var(--todoapp-card); }
+      .text-card { color: var(--todoapp-card); }
+      .border-card { border-color: var(--todoapp-card); }
+      .ring-card { --tw-ring-color: var(--todoapp-card); }
+      .bg-card-foreground { background-color: var(--todoapp-card-foreground); }
+      .text-card-foreground { color: var(--todoapp-card-foreground); }
+      .border-card-foreground { border-color: var(--todoapp-card-foreground); }
+      .ring-card-foreground { --tw-ring-color: var(--todoapp-card-foreground); }
+      .bg-popover { background-color: var(--todoapp-popover); }
+      .text-popover { color: var(--todoapp-popover); }
+      .border-popover { border-color: var(--todoapp-popover); }
+      .ring-popover { --tw-ring-color: var(--todoapp-popover); }
+      .bg-popover-foreground { background-color: var(--todoapp-popover-foreground); }
+      .text-popover-foreground { color: var(--todoapp-popover-foreground); }
+      .border-popover-foreground { border-color: var(--todoapp-popover-foreground); }
+      .ring-popover-foreground { --tw-ring-color: var(--todoapp-popover-foreground); }
+      .bg-primary { background-color: var(--todoapp-primary); }
+      .text-primary { color: var(--todoapp-primary); }
+      .border-primary { border-color: var(--todoapp-primary); }
+      .ring-primary { --tw-ring-color: var(--todoapp-primary); }
+      .bg-primary-foreground { background-color: var(--todoapp-primary-foreground); }
+      .text-primary-foreground { color: var(--todoapp-primary-foreground); }
+      .border-primary-foreground { border-color: var(--todoapp-primary-foreground); }
+      .ring-primary-foreground { --tw-ring-color: var(--todoapp-primary-foreground); }
+      .bg-muted { background-color: var(--todoapp-muted); }
+      .text-muted { color: var(--todoapp-muted); }
+      .border-muted { border-color: var(--todoapp-muted); }
+      .ring-muted { --tw-ring-color: var(--todoapp-muted); }
+      .bg-muted-foreground { background-color: var(--todoapp-muted-foreground); }
+      .text-muted-foreground { color: var(--todoapp-muted-foreground); }
+      .border-muted-foreground { border-color: var(--todoapp-muted-foreground); }
+      .ring-muted-foreground { --tw-ring-color: var(--todoapp-muted-foreground); }
+      .bg-border { background-color: var(--todoapp-border); }
+      .text-border { color: var(--todoapp-border); }
+      .border-border { border-color: var(--todoapp-border); }
+      .ring-border { --tw-ring-color: var(--todoapp-border); }
+      .bg-input { background-color: var(--todoapp-input); }
+      .text-input { color: var(--todoapp-input); }
+      .border-input { border-color: var(--todoapp-input); }
+      .ring-input { --tw-ring-color: var(--todoapp-input); }
+      .bg-ring { background-color: var(--todoapp-ring); }
+      .text-ring { color: var(--todoapp-ring); }
+      .border-ring { border-color: var(--todoapp-ring); }
+      .ring-ring { --tw-ring-color: var(--todoapp-ring); }
+    </style>
+    <style>
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      [data-icon] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-position: center;
+        mask-position: center;
+        background-color: currentColor;
+      }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+    <main>
+    </main>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

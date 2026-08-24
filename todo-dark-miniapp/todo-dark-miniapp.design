@@ -1,0 +1,58 @@
+{
+  "data": [
+    {
+      "id": "page-calendar-home",
+      "title": "日历待办",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1786192000000,
+      "canvasData": {
+        "x": 0,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/calendar-home.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-task-editor",
+      "title": "新增任务",
+      "type": "page",
+      "version": 1,
+      "canvasData": {
+        "x": 309,
+        "y": 0,
+        "group": 0
+      },
+      "createdAt": 1786192000000,
+      "devMetadata": {
+        "htmlSrc": "pages/task-editor.html",
+        "interactions": []
+      }
+    },
+    {
+      "id": "page-task-stats",
+      "title": "任务统计",
+      "type": "page",
+      "version": 1,
+      "createdAt": 1786192000000,
+      "canvasData": {
+        "x": 618,
+        "y": 0,
+        "group": 0
+      },
+      "devMetadata": {
+        "htmlSrc": "pages/task-stats.html",
+        "interactions": []
+      }
+    }
+  ],
+  "config": {
+    "autoLayout": true,
+    "deviceType": "mobile",
+    "projectName": "待办清单小程序",
+    "designLibrary": null
+  }
+}

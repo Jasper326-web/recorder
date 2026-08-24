@@ -1,0 +1,114 @@
+:root {
+  --todoapp-bg: #f6f7fb;
+  --todoapp-surface: #ffffff;
+  --todoapp-surface-2: #eef2ff;
+  --todoapp-ink: #141821;
+  --todoapp-ink-2: #5d6577;
+  --todoapp-ink-3: #8b93a6;
+  --todoapp-line: rgba(20, 24, 33, 0.08);
+  --todoapp-brand: #6f7cff;
+  --todoapp-brand-strong: #5666f6;
+  --todoapp-brand-soft: rgba(111, 124, 255, 0.12);
+  --todoapp-brand-ink: #ffffff;
+  --todoapp-state-success: #67c58a;
+  --todoapp-state-warning: #e7b35b;
+  --todoapp-state-error: #ef7d7d;
+  --todoapp-state-info: #79b6ff;
+  --todoapp-background: var(--todoapp-bg);
+  --todoapp-foreground: var(--todoapp-ink);
+  --todoapp-card: var(--todoapp-surface);
+  --todoapp-card-foreground: var(--todoapp-ink);
+  --todoapp-popover: var(--todoapp-surface);
+  --todoapp-popover-foreground: var(--todoapp-ink);
+  --todoapp-primary: var(--todoapp-brand);
+  --todoapp-primary-foreground: var(--todoapp-brand-ink);
+  --todoapp-muted: var(--todoapp-surface-2);
+  --todoapp-muted-foreground: var(--todoapp-ink-2);
+  --todoapp-border: var(--todoapp-line);
+  --todoapp-input: var(--todoapp-line);
+  --todoapp-ring: rgba(111, 124, 255, 0.45);
+  --todoapp-radius-small: 4px;
+  --todoapp-radius-medium: 8px;
+  --todoapp-radius-large: 14px;
+  --todoapp-radius-full: 9999px;
+  --background: var(--todoapp-background);
+  --foreground: var(--todoapp-foreground);
+  --card: var(--todoapp-card);
+  --card-foreground: var(--todoapp-card-foreground);
+  --popover: var(--todoapp-popover);
+  --popover-foreground: var(--todoapp-popover-foreground);
+  --primary: var(--todoapp-primary);
+  --primary-foreground: var(--todoapp-primary-foreground);
+  --muted: var(--todoapp-muted);
+  --muted-foreground: var(--todoapp-muted-foreground);
+  --border: var(--todoapp-border);
+  --input: var(--todoapp-input);
+  --ring: var(--todoapp-ring);
+  --radius-small: var(--todoapp-radius-small);
+  --radius-medium: var(--todoapp-radius-medium);
+  --radius-large: var(--todoapp-radius-large);
+  --radius-full: var(--todoapp-radius-full);
+  --font-sans: "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-title: "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: "SFMono-Regular", "JetBrains Mono", "Fira Code", monospace;
+  --text-display: clamp(32px, 7vw, 40px);
+  --text-h1: 28px;
+  --text-h2: 22px;
+  --text-h3: 18px;
+  --text-body: 15px;
+  --text-caption: 12px;
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.03), 0 10px 24px rgba(15, 23, 42, 0.04);
+  --shadow-float: 0 16px 36px rgba(15, 23, 42, 0.18);
+}
+
+html.dark,
+body.dark,
+.dark {
+  --todoapp-bg: #111319;
+  --todoapp-surface: #171a22;
+  --todoapp-surface-2: #202531;
+  --todoapp-ink: #f4f6fb;
+  --todoapp-ink-2: #aab2c5;
+  --todoapp-ink-3: #7e879c;
+  --todoapp-line: rgba(255, 255, 255, 0.08);
+  --todoapp-brand: #7b88ff;
+  --todoapp-brand-strong: #8d98ff;
+  --todoapp-brand-soft: rgba(123, 136, 255, 0.16);
+  --todoapp-brand-ink: #f9fbff;
+  --todoapp-state-success: #72c89a;
+  --todoapp-state-warning: #ebb464;
+  --todoapp-state-error: #f28f8f;
+  --todoapp-state-info: #7cbcff;
+  --todoapp-background: var(--todoapp-bg);
+  --todoapp-foreground: var(--todoapp-ink);
+  --todoapp-card: var(--todoapp-surface);
+  --todoapp-card-foreground: var(--todoapp-ink);
+  --todoapp-popover: var(--todoapp-surface);
+  --todoapp-popover-foreground: var(--todoapp-ink);
+  --todoapp-primary: var(--todoapp-brand);
+  --todoapp-primary-foreground: var(--todoapp-brand-ink);
+  --todoapp-muted: var(--todoapp-surface-2);
+  --todoapp-muted-foreground: var(--todoapp-ink-2);
+  --todoapp-border: var(--todoapp-line);
+  --todoapp-input: var(--todoapp-line);
+  --todoapp-ring: rgba(123, 136, 255, 0.52);
+  --background: var(--todoapp-background);
+  --foreground: var(--todoapp-foreground);
+  --card: var(--todoapp-card);
+  --card-foreground: var(--todoapp-card-foreground);
+  --popover: var(--todoapp-popover);
+  --popover-foreground: var(--todoapp-popover-foreground);
+  --primary: var(--todoapp-primary);
+  --primary-foreground: var(--todoapp-primary-foreground);
+  --muted: var(--todoapp-muted);
+  --muted-foreground: var(--todoapp-muted-foreground);
+  --border: var(--todoapp-border);
+  --input: var(--todoapp-input);
+  --ring: var(--todoapp-ring);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 24px rgba(0, 0, 0, 0.05);
+  --shadow-float: 0 20px 40px rgba(0, 0, 0, 0.28);
+}
+
+body {
+  font-family: var(--font-sans);
+}

@@ -227,7 +227,7 @@ export function DesireView({ desireRecords, onAddRecord, onDeleteRecord }: Desir
   )
 }
 
-function DesireForm({
+export function DesireForm({
   onSubmit,
   onCancel,
   selectedDate,

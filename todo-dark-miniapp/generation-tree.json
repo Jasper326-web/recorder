@@ -1,0 +1,111 @@
+{
+  "root": {
+    "nodeId": "gen-project-shell",
+    "kind": "project-shell",
+    "pageIds": [
+      "page-calendar-home",
+      "page-task-editor",
+      "page-task-stats"
+    ],
+    "output": "partials/project-shell.html",
+    "sharedRegions": [
+      "mini-program-top-chrome",
+      "dark-surface-language",
+      "type-scale",
+      "radius-scale",
+      "spacing-rhythm",
+      "cta-treatment"
+    ],
+    "privateRegions": [],
+    "mutableSlots": [
+      "page-title",
+      "page-subtitle",
+      "page-body",
+      "page-footer"
+    ],
+    "status": "generated",
+    "children": [
+      {
+        "nodeId": "gen-page-calendar-home",
+        "kind": "page-leaf",
+        "pageIds": [
+          "page-calendar-home"
+        ],
+        "output": "pages/calendar-home.html",
+        "sharedRegions": [
+          "mini-program-top-chrome",
+          "dark-surface-language",
+          "page-footer"
+        ],
+        "privateRegions": [
+          "calendar-switcher",
+          "time-grouped-task-cards",
+          "new-task-cta"
+        ],
+        "mutableSlots": [
+          "page-title",
+          "page-subtitle",
+          "page-body",
+          "page-footer"
+        ],
+        "status": "planned",
+        "children": []
+      },
+      {
+        "nodeId": "gen-page-task-editor",
+        "kind": "page-leaf",
+        "pageIds": [
+          "page-task-editor"
+        ],
+        "output": "pages/task-editor.html",
+        "sharedRegions": [
+          "mini-program-top-chrome",
+          "dark-surface-language",
+          "page-footer"
+        ],
+        "privateRegions": [
+          "task-form",
+          "tag-selector",
+          "priority-selector",
+          "reminder-toggle",
+          "save-cta"
+        ],
+        "mutableSlots": [
+          "page-title",
+          "page-subtitle",
+          "page-body",
+          "page-footer"
+        ],
+        "status": "planned",
+        "children": []
+      },
+      {
+        "nodeId": "gen-page-task-stats",
+        "kind": "page-leaf",
+        "pageIds": [
+          "page-task-stats"
+        ],
+        "output": "pages/task-stats.html",
+        "sharedRegions": [
+          "mini-program-top-chrome",
+          "dark-surface-language",
+          "page-footer"
+        ],
+        "privateRegions": [
+          "completion-ring",
+          "weekly-monthly-chart",
+          "category-completion-list",
+          "archive-entry"
+        ],
+        "mutableSlots": [
+          "page-title",
+          "page-subtitle",
+          "page-body",
+          "page-footer"
+        ],
+        "status": "planned",
+        "children": []
+      }
+    ]
+  }
+}

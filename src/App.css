@@ -957,6 +957,110 @@ select {
   font-size: 14px;
 }
 
+/* 补记操作 */
+.supplement-actions {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  border: 1px dashed var(--soft-line);
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.supplement-label {
+  font-family: var(--font-title);
+  font-size: 13px;
+  color: var(--ink-faint);
+  letter-spacing: 2px;
+}
+
+.supplement-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.supplement-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--soft-line);
+  background: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-size: 14px;
+  font-family: var(--font-body);
+  color: var(--ink-deep);
+  transition: all 0.2s ease;
+}
+
+.supplement-btn:hover {
+  border-color: var(--celadon-deep);
+  color: var(--celadon-deep);
+}
+
+.supplement-btn.active {
+  background: var(--celadon-bg);
+  border-color: var(--celadon-deep);
+  color: var(--celadon-deep);
+}
+
+.supplement-form {
+  margin-top: 10px;
+}
+
+.supplement-desire-form {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.supplement-microhabits {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--soft-line);
+  background: rgba(255, 255, 255, 0.5);
+  margin-top: 10px;
+}
+
+.supplement-section-title {
+  font-family: var(--font-title);
+  font-size: 14px;
+  color: var(--ink-deep);
+  letter-spacing: 1px;
+}
+
+.microhabits-checkbox-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.habit-checkbox.micro-habit {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.prefill-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--celadon-bg), rgba(61, 139, 122, 0.08));
+  border: 1px solid var(--celadon-deep);
+  color: var(--celadon-deep);
+  font-size: 14px;
+  font-family: var(--font-body);
+}
+
+.prefill-notice strong {
+  font-family: var(--font-title);
+  font-weight: 600;
+}
+
 /* 日期面板 */
 .day-panel {
   padding: 24px;
