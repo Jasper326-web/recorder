@@ -9,7 +9,9 @@ import {
   clearEntries,
   createDesireRecord,
   createEntry,
+  createGoldenQuote,
   deleteDesireRecord,
+  deleteGoldenQuote,
   filterEntries,
   getDesireRecordsForDate,
   getDesireStats,
@@ -17,6 +19,7 @@ import {
   loadDailyStates,
   loadDesireRecords,
   loadEntries,
+  loadGoldenQuotes,
   loadMicroHabitStates,
   microHabitOptions,
   loadPendingDesireSync,
@@ -25,14 +28,16 @@ import {
   saveDailyStates,
   saveDesireRecords,
   saveEntries,
+  saveGoldenQuotes,
   saveMicroHabitStates,
   toDateKey,
   trainingTracks,
   upsertDailyState,
   upsertDesireRecord,
+  upsertGoldenQuote,
   upsertMicroHabitState,
 } from './domain'
-import type { DailyState, DesireIntensity, DesireRecord, Entry, EntryType, HabitName, MicroHabitName, MicroHabitState, TrainingTrackName } from './domain'
+import type { DailyState, DesireIntensity, DesireRecord, Entry, EntryType, GoldenQuote, HabitName, MicroHabitName, MicroHabitState, TrainingTrackName } from './domain'
 import {
   clearLoginSession,
   enforceLoginSessionExpiry,
@@ -41,13 +46,14 @@ import {
   markLoginSession,
   SESSION_DAYS,
 } from './authSession'
-import { fetchCloudDailyStates, fetchCloudDesireRecords, fetchCloudMicroHabitStates, fetchCloudEntries, getCloudMediaUrl, uploadMediaBlob, upsertCloudDailyState, upsertCloudDesireRecord, upsertCloudMicroHabitState, upsertCloudEntry, deleteCloudDesireRecord } from './cloudSync'
+import { fetchCloudDailyStates, fetchCloudDesireRecords, fetchCloudGoldenQuotes, fetchCloudMicroHabitStates, fetchCloudEntries, getCloudMediaUrl, uploadMediaBlob, upsertCloudDailyState, upsertCloudDesireRecord, upsertCloudGoldenQuote, upsertCloudMicroHabitState, upsertCloudEntry, deleteCloudDesireRecord, deleteCloudGoldenQuote } from './cloudSync'
 import { hasSupabaseConfig, supabase } from './supabaseClient'
 import { clearVideoBlobs } from './videoStore'
 import { DesireForm, DesireView } from './DesireView'
 import { MicroHabitView } from './MicroHabitView'
+import { QuoteView } from './QuoteView'
 
-type Tab = 'record' | 'calendar' | 'list' | 'desire' | 'microHabit' | 'companion' | 'settings'
+type Tab = 'record' | 'calendar' | 'list' | 'desire' | 'microHabit' | 'quote' | 'companion' | 'settings'
 
 type ChatMessage = {
   role: 'assistant' | 'user'
@@ -89,6 +95,7 @@ const navItems: Array<{ id: Tab; label: string; icon: IconName }> = [
   { id: 'list', label: '列表', icon: 'list' },
   { id: 'desire', label: '邪念', icon: 'flame' },
   { id: 'microHabit', label: '微习惯', icon: 'target' },
+  { id: 'quote', label: '金句', icon: 'sparkles' },
   { id: 'companion', label: '心灵小蜜', icon: 'bot' },
   { id: 'settings', label: '设置', icon: 'settings' },
 ]
@@ -100,6 +107,7 @@ function App() {
   const [dailyStates, setDailyStates] = useState<Record<string, DailyState>>(() => loadDailyStates())
   const [desireRecords, setDesireRecords] = useState<DesireRecord[]>(() => loadDesireRecords())
   const [microHabitStates, setMicroHabitStates] = useState<Record<string, MicroHabitState>>(() => loadMicroHabitStates())
+  const [goldenQuotes, setGoldenQuotes] = useState<GoldenQuote[]>(() => loadGoldenQuotes())
   const [activeTab, setActiveTab] = useState<Tab>('record')
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null)
   const [prefillDate, setPrefillDate] = useState<string | null>(null)
@@ -120,6 +128,10 @@ function App() {
   useEffect(() => {
     saveMicroHabitStates(microHabitStates)
   }, [microHabitStates])
+
+  useEffect(() => {
+    saveGoldenQuotes(goldenQuotes)
+  }, [goldenQuotes])
 
   useEffect(() => {
     if (!supabase) return
@@ -202,6 +214,25 @@ function App() {
       }
     }
 
+    async function loadCloudGoldenQuotes() {
+      try {
+        const cloudQuotes = await fetchCloudGoldenQuotes()
+        if (!isMounted) return
+        setGoldenQuotes((current) => {
+          const localIds = new Set(current.map((q) => q.id))
+          const merged = [...current]
+          for (const cloudQuote of cloudQuotes) {
+            if (!localIds.has(cloudQuote.id)) {
+              merged.push(cloudQuote)
+            }
+          }
+          return merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        })
+      } catch {
+        if (isMounted) console.warn('读取 Supabase 金句失败，使用本地数据。')
+      }
+    }
+
     async function restoreSession() {
       const { data } = await client.auth.getSession()
       if (!data.session) return
@@ -225,6 +256,7 @@ function App() {
       loadCloudDailyStates()
       loadCloudDesireRecords()
       loadCloudMicroHabitStates()
+      loadCloudGoldenQuotes()
     }
 
     restoreSession()
@@ -242,6 +274,7 @@ function App() {
         loadCloudDailyStates()
         loadCloudDesireRecords()
         loadCloudMicroHabitStates()
+        loadCloudGoldenQuotes()
       } else if (event === 'SIGNED_OUT') {
         clearLoginSession()
       }
@@ -347,6 +380,49 @@ function App() {
     }
   }
 
+  async function addGoldenQuote(quote: GoldenQuote) {
+    setGoldenQuotes((current) => upsertGoldenQuote(current, quote))
+    setStatus('金句已添加')
+
+    if (supabase) {
+      supabase.auth.getSession().then(({ data: sessionData }) => {
+        const userId = sessionData.session?.user.id
+        if (userId) {
+          upsertCloudGoldenQuote(quote, userId).catch((error) => {
+            console.warn('保存金句到云端失败:', error)
+          })
+        }
+      })
+    }
+  }
+
+  async function updateGoldenQuote(quote: GoldenQuote) {
+    setGoldenQuotes((current) => upsertGoldenQuote(current, quote))
+    setStatus('金句已更新')
+
+    if (supabase) {
+      supabase.auth.getSession().then(({ data: sessionData }) => {
+        const userId = sessionData.session?.user.id
+        if (userId) {
+          upsertCloudGoldenQuote(quote, userId).catch((error) => {
+            console.warn('更新金句到云端失败:', error)
+          })
+        }
+      })
+    }
+  }
+
+  async function removeGoldenQuote(id: string) {
+    setGoldenQuotes((current) => deleteGoldenQuote(current, id))
+    setStatus('金句已删除')
+
+    if (supabase) {
+      deleteCloudGoldenQuote(id).catch((error) => {
+        console.warn('删除金句失败:', error)
+      })
+    }
+  }
+
   async function clearAll() {
     clearEntries()
     await clearVideoBlobs()
@@ -389,11 +465,12 @@ function App() {
       </aside>
 
       <main className="main-panel">
-        {activeTab === 'record' && <RecordView onAddEntry={addEntry} prefillDate={prefillDate} onPrefillDateConsumed={() => setPrefillDate(null)} />}
+        {activeTab === 'record' && <RecordView onAddEntry={addEntry} prefillDate={prefillDate} onPrefillDateConsumed={() => setPrefillDate(null)} goldenQuotes={goldenQuotes} />}
         {activeTab === 'calendar' && <CalendarView entries={entries} desireRecords={desireRecords} dailyStates={dailyStates} microHabitStates={microHabitStates} onSelectEntry={setSelectedEntryId} onSaveDailyState={saveDailyState} onAddDesireRecord={addDesireRecord} onSaveMicroHabitState={saveMicroHabitState} onGoToRecord={(dateKey) => { setSelectedEntryId(null); setActiveTab('record'); setTimeout(() => setPrefillDate(dateKey), 0); }} />}
         {activeTab === 'list' && <ListView entries={sortedEntries} onSelectEntry={setSelectedEntryId} />}
         {activeTab === 'desire' && <DesireView desireRecords={desireRecords} onAddRecord={addDesireRecord} onDeleteRecord={removeDesireRecord} />}
         {activeTab === 'microHabit' && <MicroHabitView states={microHabitStates} onSaveState={saveMicroHabitState} />}
+        {activeTab === 'quote' && <QuoteView quotes={goldenQuotes} onAddQuote={addGoldenQuote} onUpdateQuote={updateGoldenQuote} onDeleteQuote={removeGoldenQuote} />}
         {activeTab === 'companion' && <CompanionView entries={sortedEntries} onOpenSettings={() => setActiveTab('settings')} selectedEntry={selectedEntry} />}
         {activeTab === 'settings' && <SettingsView onClear={clearAll} />}
       </main>
@@ -425,7 +502,7 @@ function App() {
   )
 }
 
-function RecordView({ onAddEntry, prefillDate, onPrefillDateConsumed }: { onAddEntry: (entry: Entry) => void; prefillDate: string | null; onPrefillDateConsumed: () => void }) {
+function RecordView({ onAddEntry, prefillDate, onPrefillDateConsumed, goldenQuotes }: { onAddEntry: (entry: Entry) => void; prefillDate: string | null; onPrefillDateConsumed: () => void; goldenQuotes: GoldenQuote[] }) {
   const [type, setType] = useState<EntryType>('text')
   const [bodyText, setBodyText] = useState('')
   const [error, setError] = useState('')
@@ -434,6 +511,7 @@ function RecordView({ onAddEntry, prefillDate, onPrefillDateConsumed }: { onAddE
   const [isRecording, setIsRecording] = useState(false)
   const [cameraReady, setCameraReady] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [showQuotePicker, setShowQuotePicker] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const recorderRef = useRef<MediaRecorder | null>(null)
@@ -597,7 +675,36 @@ function RecordView({ onAddEntry, prefillDate, onPrefillDateConsumed }: { onAddE
         <div className="record-composer">
           {type === 'text' ? (
             <label className="field-block">
-              <span>文字记录</span>
+              <span>
+                文字记录
+                {goldenQuotes.length > 0 && (
+                  <button
+                    className="quote-picker-toggle"
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); setShowQuotePicker((v) => !v) }}
+                  >
+                    <Icon name="sparkles" size={13} />
+                    金句 ({goldenQuotes.length})
+                  </button>
+                )}
+              </span>
+              {showQuotePicker && goldenQuotes.length > 0 && (
+                <div className="quote-picker">
+                  {goldenQuotes.map((quote) => (
+                    <button
+                      key={quote.id}
+                      type="button"
+                      className="quote-picker-item"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        setBodyText((prev) => (prev ? prev + '\n' + quote.text : quote.text))
+                      }}
+                    >
+                      {quote.text}
+                    </button>
+                  ))}
+                </div>
+              )}
               <textarea
                 className="body-textarea simple-entry"
                 onChange={(event) => setBodyText(event.target.value)}

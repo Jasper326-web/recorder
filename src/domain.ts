@@ -650,3 +650,56 @@ export function getMicroHabitStatesForRange(
   }
   return result
 }
+
+export type GoldenQuote = {
+  id: string
+  text: string
+  createdAt: string
+  updatedAt: string
+}
+
+const goldenQuoteStorageKey = 'self-recorder.golden-quotes.v1'
+
+export function loadGoldenQuotes(): GoldenQuote[] {
+  if (typeof localStorage === 'undefined') return []
+
+  try {
+    const raw = localStorage.getItem(goldenQuoteStorageKey)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) {
+      return parsed as GoldenQuote[]
+    }
+    return []
+  } catch {
+    return []
+  }
+}
+
+export function saveGoldenQuotes(quotes: GoldenQuote[]) {
+  localStorage.setItem(goldenQuoteStorageKey, JSON.stringify(quotes))
+}
+
+export function createGoldenQuote(text: string): GoldenQuote {
+  const now = new Date()
+  return {
+    id: `quote-${now.getTime()}-${Math.random().toString(16).slice(2, 8)}`,
+    text: text.trim(),
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  }
+}
+
+export function upsertGoldenQuote(quotes: GoldenQuote[], quote: GoldenQuote): GoldenQuote[] {
+  const index = quotes.findIndex((q) => q.id === quote.id)
+  if (index >= 0) {
+    const updated = [...quotes]
+    updated[index] = { ...quote, updatedAt: new Date().toISOString() }
+    return updated
+  }
+  return [quote, ...quotes]
+}
+
+export function deleteGoldenQuote(quotes: GoldenQuote[], id: string): GoldenQuote[] {
+  return quotes.filter((q) => q.id !== id)
+}

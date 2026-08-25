@@ -1,4 +1,4 @@
-import type { DailyState, DesireIntensity, DesireRecord, Entry, EntryType, HabitName, MicroHabitName, MicroHabitState, PromptAnswers, TrainingTrackName } from './domain'
+import type { DailyState, DesireIntensity, DesireRecord, Entry, EntryType, GoldenQuote, HabitName, MicroHabitName, MicroHabitState, PromptAnswers, TrainingTrackName } from './domain'
 import { supabase } from './supabaseClient'
 
 const mediaBucket = 'entry-media'
@@ -292,6 +292,64 @@ export async function upsertCloudMicroHabitState(state: MicroHabitState, userId:
   const { error } = await supabase
     .from('micro_habit_states')
     .upsert(row, { onConflict: 'date_key,user_id' })
+
+  if (error) throw error
+}
+
+type GoldenQuoteRow = {
+  id: string
+  user_id: string
+  text: string
+  created_at: string
+  updated_at: string
+}
+
+export async function fetchCloudGoldenQuotes(): Promise<GoldenQuote[]> {
+  if (!supabase) return []
+
+  const { data, error } = await supabase
+    .from('golden_quotes')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    if (error.message.includes('does not exist')) return []
+    throw error
+  }
+
+  return (data ?? []).map((row: GoldenQuoteRow) => ({
+    id: row.id,
+    text: row.text,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }))
+}
+
+export async function upsertCloudGoldenQuote(quote: GoldenQuote, userId: string) {
+  if (!supabase) throw new Error('还没有配置 Supabase 环境变量。')
+
+  const row: GoldenQuoteRow = {
+    id: quote.id,
+    user_id: userId,
+    text: quote.text,
+    created_at: quote.createdAt,
+    updated_at: quote.updatedAt,
+  }
+
+  const { error } = await supabase
+    .from('golden_quotes')
+    .upsert(row, { onConflict: 'id' })
+
+  if (error) throw error
+}
+
+export async function deleteCloudGoldenQuote(id: string) {
+  if (!supabase) throw new Error('还没有配置 Supabase 环境变量。')
+
+  const { error } = await supabase
+    .from('golden_quotes')
+    .delete()
+    .eq('id', id)
 
   if (error) throw error
 }

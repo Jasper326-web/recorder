@@ -1061,6 +1061,212 @@ select {
   font-weight: 600;
 }
 
+/* 金句库 */
+.quote-view {
+  display: grid;
+  gap: 20px;
+}
+
+.quote-input-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.quote-input {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--soft-line);
+  background: rgba(255, 255, 255, 0.7);
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--ink-deep);
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.quote-input:focus {
+  border-color: var(--celadon-deep);
+}
+
+.quote-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  white-space: nowrap;
+}
+
+.quote-empty {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  padding: 40px 20px;
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+.quote-empty svg {
+  opacity: 0.5;
+}
+
+.quote-list {
+  display: grid;
+  gap: 12px;
+}
+
+.quote-card {
+  padding: 16px 18px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--soft-line);
+  background: rgba(255, 255, 255, 0.75);
+  display: grid;
+  gap: 10px;
+}
+
+.quote-text {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--ink-deep);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.quote-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.quote-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.quote-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--soft-line);
+  background: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  color: var(--ink-light);
+  transition: all 0.2s ease;
+}
+
+.quote-actions button:hover {
+  border-color: var(--celadon-deep);
+  color: var(--celadon-deep);
+}
+
+.quote-edit-row {
+  display: grid;
+  gap: 10px;
+}
+
+.quote-edit-input {
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--soft-line);
+  background: rgba(255, 255, 255, 0.8);
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--ink-deep);
+  resize: vertical;
+  outline: none;
+}
+
+.quote-edit-input:focus {
+  border-color: var(--celadon-deep);
+}
+
+.quote-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.quote-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--soft-line);
+  background: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font-body);
+  transition: all 0.2s ease;
+}
+
+.quote-btn.save {
+  background: var(--celadon-bg);
+  border-color: var(--celadon-deep);
+  color: var(--celadon-deep);
+}
+
+.quote-btn.cancel:hover {
+  border-color: var(--ink-light);
+}
+
+/* 记录页金句选择器 */
+.quote-picker-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 10px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--soft-line);
+  background: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: var(--font-body);
+  color: var(--ink-light);
+  transition: all 0.2s ease;
+}
+
+.quote-picker-toggle:hover {
+  border-color: var(--celadon-deep);
+  color: var(--celadon-deep);
+}
+
+.quote-picker {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  margin-bottom: 8px;
+  border-radius: var(--r-md);
+  border: 1px dashed var(--soft-line);
+  background: rgba(255, 255, 255, 0.5);
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.quote-picker-item {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--soft-line);
+  background: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  font-size: 14px;
+  font-family: var(--font-body);
+  color: var(--ink-deep);
+  text-align: left;
+  line-height: 1.5;
+  transition: all 0.2s ease;
+}
+
+.quote-picker-item:hover {
+  border-color: var(--celadon-deep);
+  background: var(--celadon-bg);
+  color: var(--celadon-deep);
+}
+
 /* 日期面板 */
 .day-panel {
   padding: 24px;
