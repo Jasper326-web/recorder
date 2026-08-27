@@ -1,6 +1,6 @@
 export type EntryType = 'text' | 'video' | 'audio'
 
-export type HabitName = '英语' | '健身' | 'iOS编程课'
+export type HabitName = '英语' | '健步走' | 'iOS编程课' | '备考编制'
 
 export const habitOptions: Array<{
   name: HabitName
@@ -8,8 +8,9 @@ export const habitOptions: Array<{
   color: string
 }> = [
   { name: '英语', icon: '📖', color: '#3d8b7a' },
-  { name: '健身', icon: '💪', color: '#d97706' },
+  { name: '健步走', icon: '🚶', color: '#d97706' },
   { name: 'iOS编程课', icon: '💻', color: '#6b5b7a' },
+  { name: '备考编制', icon: '📝', color: '#b45309' },
 ]
 
 export type MicroHabitName =
