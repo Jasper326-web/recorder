@@ -10,7 +10,7 @@ export const habitOptions: Array<{
   { name: '英语', icon: '📖', color: '#3d8b7a' },
   { name: '健步走', icon: '🚶', color: '#d97706' },
   { name: 'iOS编程课', icon: '💻', color: '#6b5b7a' },
-  { name: '备考编制', icon: '📝', color: '#b45309' },
+  { name: '备考编制', icon: '📝', color: '#c2410c' },
 ]
 
 export type MicroHabitName =
