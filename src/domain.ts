@@ -1,13 +1,12 @@
 export type EntryType = 'text' | 'video' | 'audio'
 
-export type HabitName = '健步走' | 'iOS编程课' | '备考编制' | '冥想10min' | '轻运动20min' | '戒色播客一集'
+export type HabitName = 'iOS编程课' | '备考编制' | '冥想10min' | '轻运动20min' | '戒色播客一集'
 
 export const habitOptions: Array<{
   name: HabitName
   icon: string
   color: string
 }> = [
-  { name: '健步走', icon: '🚶', color: '#d97706' },
   { name: 'iOS编程课', icon: '💻', color: '#6b5b7a' },
   { name: '备考编制', icon: '📝', color: '#c2410c' },
   { name: '冥想10min', icon: '🧘', color: '#0d9488' },
