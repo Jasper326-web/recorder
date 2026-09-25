@@ -1,43 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, FormEvent } from 'react'
-import type { ReactNode } from 'react'
+import type { FormEvent } from 'react'
 import './App.css'
 import { Icon, type IconName } from './AppIcons'
 import {
-  addPendingDesireSync,
   buildCalendarDays,
   clearEntries,
-  createDesireRecord,
   createEntry,
   createGoldenQuote,
-  deleteDesireRecord,
   deleteGoldenQuote,
   filterEntries,
-  getDesireRecordsForDate,
-  getDesireStats,
+  getHabitMilestones,
+  getHabitStats,
   habitOptions,
   loadDailyStates,
-  loadDesireRecords,
   loadEntries,
   loadGoldenQuotes,
-  loadMicroHabitStates,
-  microHabitOptions,
-  loadPendingDesireSync,
   mergeEntries,
-  removePendingDesireSync,
   saveDailyStates,
-  saveDesireRecords,
   saveEntries,
   saveGoldenQuotes,
-  saveMicroHabitStates,
   toDateKey,
   trainingTracks,
   upsertDailyState,
-  upsertDesireRecord,
   upsertGoldenQuote,
-  upsertMicroHabitState,
 } from './domain'
-import type { DailyState, DesireIntensity, DesireRecord, Entry, EntryType, GoldenQuote, HabitName, MicroHabitName, MicroHabitState, TrainingTrackName } from './domain'
+import type { DailyState, Entry, EntryType, GoldenQuote, HabitName, TrainingTrackName } from './domain'
 import {
   clearLoginSession,
   enforceLoginSessionExpiry,
@@ -46,14 +33,13 @@ import {
   markLoginSession,
   SESSION_DAYS,
 } from './authSession'
-import { fetchCloudDailyStates, fetchCloudDesireRecords, fetchCloudGoldenQuotes, fetchCloudMicroHabitStates, fetchCloudEntries, getCloudMediaUrl, uploadMediaBlob, upsertCloudDailyState, upsertCloudDesireRecord, upsertCloudGoldenQuote, upsertCloudMicroHabitState, upsertCloudEntry, deleteCloudDesireRecord, deleteCloudGoldenQuote } from './cloudSync'
+import { fetchCloudDailyStates, fetchCloudGoldenQuotes, fetchCloudEntries, getCloudMediaUrl, uploadMediaBlob, upsertCloudDailyState, upsertCloudGoldenQuote, upsertCloudEntry, deleteCloudGoldenQuote } from './cloudSync'
 import { hasSupabaseConfig, supabase } from './supabaseClient'
 import { clearVideoBlobs } from './videoStore'
-import { DesireForm, DesireView } from './DesireView'
-import { MicroHabitView } from './MicroHabitView'
+import { HabitStatsView } from './HabitStatsView'
 import { QuoteView } from './QuoteView'
 
-type Tab = 'record' | 'calendar' | 'list' | 'desire' | 'microHabit' | 'quote' | 'companion' | 'settings'
+type Tab = 'record' | 'calendar' | 'list' | 'habitStats' | 'quote' | 'companion' | 'settings'
 
 type ChatMessage = {
   role: 'assistant' | 'user'
@@ -93,8 +79,7 @@ const navItems: Array<{ id: Tab; label: string; icon: IconName }> = [
   { id: 'record', label: '记录', icon: 'home' },
   { id: 'calendar', label: '日历', icon: 'calendar' },
   { id: 'list', label: '列表', icon: 'list' },
-  { id: 'desire', label: '邪念', icon: 'flame' },
-  { id: 'microHabit', label: '微习惯', icon: 'target' },
+  { id: 'habitStats', label: '习惯追踪', icon: 'heart' },
   { id: 'quote', label: '金句', icon: 'sparkles' },
   { id: 'companion', label: '心灵小蜜', icon: 'bot' },
   { id: 'settings', label: '设置', icon: 'settings' },
@@ -105,8 +90,6 @@ const rememberedEmailKey = 'self-recorder.remembered-emails.v1'
 function App() {
   const [entries, setEntries] = useState<Entry[]>(() => loadEntries())
   const [dailyStates, setDailyStates] = useState<Record<string, DailyState>>(() => loadDailyStates())
-  const [desireRecords, setDesireRecords] = useState<DesireRecord[]>(() => loadDesireRecords())
-  const [microHabitStates, setMicroHabitStates] = useState<Record<string, MicroHabitState>>(() => loadMicroHabitStates())
   const [goldenQuotes, setGoldenQuotes] = useState<GoldenQuote[]>(() => loadGoldenQuotes())
   const [activeTab, setActiveTab] = useState<Tab>('record')
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null)
@@ -120,14 +103,6 @@ function App() {
   useEffect(() => {
     saveDailyStates(dailyStates)
   }, [dailyStates])
-
-  useEffect(() => {
-    saveDesireRecords(desireRecords)
-  }, [desireRecords])
-
-  useEffect(() => {
-    saveMicroHabitStates(microHabitStates)
-  }, [microHabitStates])
 
   useEffect(() => {
     saveGoldenQuotes(goldenQuotes)
@@ -152,48 +127,6 @@ function App() {
       }
     }
 
-    async function loadCloudDesireRecords() {
-      try {
-        const cloudDesireRecords = await fetchCloudDesireRecords()
-        if (!isMounted) return
-        setDesireRecords((current) => {
-          const merged = new Map<string, DesireRecord>()
-          for (const r of cloudDesireRecords) merged.set(r.id, r)
-          for (const r of current) merged.set(r.id, r)
-          return Array.from(merged.values())
-        })
-
-        const pending = loadPendingDesireSync()
-        if (pending.length > 0) {
-          const { data: sessionData } = await client.auth.getSession()
-          const userId = sessionData.session?.user.id
-          if (userId) {
-            for (const record of pending) {
-              try {
-                await upsertCloudDesireRecord(record, userId)
-                removePendingDesireSync(record.id)
-                if (isMounted) {
-                  setDesireRecords((current) => upsertDesireRecord(current, record))
-                }
-              } catch {
-                break
-              }
-            }
-            if (isMounted) {
-              const remainingPending = loadPendingDesireSync()
-              if (remainingPending.length === 0) {
-                setStatus(`云端同步完成，${pending.length} 条待同步邪念记录已上传。`)
-              } else {
-                setStatus(`${pending.length - remainingPending.length}/${pending.length} 条邪念记录已同步，其余将继续重试。`)
-              }
-            }
-          }
-        }
-      } catch {
-        if (isMounted) console.warn('读取 Supabase 邪念记录失败，使用本地数据。')
-      }
-    }
-
     async function loadCloudDailyStates() {
       try {
         const cloudDailyStates = await fetchCloudDailyStates()
@@ -201,16 +134,6 @@ function App() {
         setDailyStates((current) => ({ ...cloudDailyStates, ...current }))
       } catch {
         if (isMounted) console.warn('读取 Supabase 每日状态失败，使用本地数据。')
-      }
-    }
-
-    async function loadCloudMicroHabitStates() {
-      try {
-        const cloudStates = await fetchCloudMicroHabitStates()
-        if (!isMounted) return
-        setMicroHabitStates((current) => ({ ...cloudStates, ...current }))
-      } catch {
-        if (isMounted) console.warn('读取 Supabase 微习惯状态失败，使用本地数据。')
       }
     }
 
@@ -254,8 +177,6 @@ function App() {
 
       loadCloudEntries()
       loadCloudDailyStates()
-      loadCloudDesireRecords()
-      loadCloudMicroHabitStates()
       loadCloudGoldenQuotes()
     }
 
@@ -272,8 +193,6 @@ function App() {
         }
         loadCloudEntries()
         loadCloudDailyStates()
-        loadCloudDesireRecords()
-        loadCloudMicroHabitStates()
         loadCloudGoldenQuotes()
       } else if (event === 'SIGNED_OUT') {
         clearLoginSession()
@@ -306,43 +225,6 @@ function App() {
     setStatus('已保存。你刚刚又多看见了自己一点。')
   }
 
-  function addDesireRecord(record: DesireRecord) {
-    setDesireRecords((current) => upsertDesireRecord(current, record))
-    setStatus(record.successful ? '邪念已记录，成功应对！' : '邪念已记录，下次继续努力。')
-
-    if (supabase) {
-      supabase.auth.getSession().then(({ data: sessionData }) => {
-        const userId = sessionData.session?.user.id
-        if (userId) {
-          upsertCloudDesireRecord(record, userId).then(() => {
-            removePendingDesireSync(record.id)
-          }).catch((error) => {
-            console.warn('保存邪念记录到云端失败:', error)
-            addPendingDesireSync(record)
-            setStatus('本地已保存，云端同步失败，将在网络恢复后自动重试。')
-          })
-        } else {
-          addPendingDesireSync(record)
-          setStatus('本地已保存，请先登录后自动同步到云端。')
-        }
-      })
-    }
-  }
-
-  async function removeDesireRecord(id: string) {
-    setDesireRecords((current) => deleteDesireRecord(current, id))
-    removePendingDesireSync(id)
-    setStatus('邪念记录已删除。')
-
-    if (supabase) {
-      try {
-        await deleteCloudDesireRecord(id)
-      } catch (error) {
-        console.warn('删除邪念记录失败:', error)
-      }
-    }
-  }
-
   async function saveDailyState(dateKey: string, habits: HabitName[]) {
     const newState: DailyState = {
       dateKey,
@@ -358,22 +240,6 @@ function App() {
         if (userId) {
           upsertCloudDailyState(newState, userId).catch((error) => {
             console.warn('保存每日状态到云端失败:', error)
-          })
-        }
-      })
-    }
-  }
-
-  async function saveMicroHabitState(state: MicroHabitState) {
-    setMicroHabitStates((current) => upsertMicroHabitState(current, state))
-    setStatus(`微习惯已记录：${state.score}/10 分`)
-
-    if (supabase) {
-      supabase.auth.getSession().then(({ data: sessionData }) => {
-        const userId = sessionData.session?.user.id
-        if (userId) {
-          upsertCloudMicroHabitState(state, userId).catch((error) => {
-            console.warn('保存微习惯状态到云端失败:', error)
           })
         }
       })
@@ -466,10 +332,9 @@ function App() {
 
       <main className="main-panel">
         {activeTab === 'record' && <RecordView onAddEntry={addEntry} prefillDate={prefillDate} onPrefillDateConsumed={() => setPrefillDate(null)} goldenQuotes={goldenQuotes} />}
-        {activeTab === 'calendar' && <CalendarView entries={entries} desireRecords={desireRecords} dailyStates={dailyStates} microHabitStates={microHabitStates} onSelectEntry={setSelectedEntryId} onSaveDailyState={saveDailyState} onAddDesireRecord={addDesireRecord} onSaveMicroHabitState={saveMicroHabitState} onGoToRecord={(dateKey) => { setSelectedEntryId(null); setActiveTab('record'); setTimeout(() => setPrefillDate(dateKey), 0); }} />}
+        {activeTab === 'calendar' && <CalendarView entries={entries} dailyStates={dailyStates} onSelectEntry={setSelectedEntryId} onSaveDailyState={saveDailyState} onGoToRecord={(dateKey) => { setSelectedEntryId(null); setActiveTab('record'); setTimeout(() => setPrefillDate(dateKey), 0); }} />}
         {activeTab === 'list' && <ListView entries={sortedEntries} onSelectEntry={setSelectedEntryId} />}
-        {activeTab === 'desire' && <DesireView desireRecords={desireRecords} onAddRecord={addDesireRecord} onDeleteRecord={removeDesireRecord} />}
-        {activeTab === 'microHabit' && <MicroHabitView states={microHabitStates} onSaveState={saveMicroHabitState} />}
+        {activeTab === 'habitStats' && <HabitStatsView dailyStates={dailyStates} />}
         {activeTab === 'quote' && <QuoteView quotes={goldenQuotes} onAddQuote={addGoldenQuote} onUpdateQuote={updateGoldenQuote} onDeleteQuote={removeGoldenQuote} />}
         {activeTab === 'companion' && <CompanionView entries={sortedEntries} onOpenSettings={() => setActiveTab('settings')} selectedEntry={selectedEntry} />}
         {activeTab === 'settings' && <SettingsView onClear={clearAll} />}
@@ -813,48 +678,30 @@ function saveRememberedEmail(email: string) {
 
 function CalendarView({
   entries,
-  desireRecords,
   dailyStates,
-  microHabitStates,
   onSelectEntry,
   onSaveDailyState,
-  onAddDesireRecord,
-  onSaveMicroHabitState,
   onGoToRecord,
 }: {
   entries: Entry[]
-  desireRecords: DesireRecord[]
   dailyStates: Record<string, DailyState>
-  microHabitStates: Record<string, MicroHabitState>
   onSelectEntry: (id: string) => void
   onSaveDailyState: (dateKey: string, habits: HabitName[]) => Promise<void>
-  onAddDesireRecord: (record: DesireRecord) => void
-  onSaveMicroHabitState: (state: MicroHabitState) => Promise<void>
   onGoToRecord: (dateKey: string) => void
 }) {
   const [anchor, setAnchor] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(toDateKey(new Date()))
   const [localHabits, setLocalHabits] = useState<HabitName[]>([])
-  const [localMicroHabits, setLocalMicroHabits] = useState<MicroHabitName[]>([])
-  const [supplementMode, setSupplementMode] = useState<'none' | 'desire' | 'microHabit'>('none')
-  const days = useMemo(() => buildCalendarDays(entries, desireRecords, dailyStates, anchor), [entries, desireRecords, dailyStates, anchor])
+  const days = useMemo(() => buildCalendarDays(entries, [], dailyStates, anchor), [entries, dailyStates, anchor])
   const dayEntries = entries
     .filter((entry) => toDateKey(new Date(entry.createdAt)) === selectedDate)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  const dayDesireRecords = useMemo(
-    () => getDesireRecordsForDate(desireRecords, selectedDate),
-    [desireRecords, selectedDate],
-  )
 
   const selectedDailyState = dailyStates[selectedDate]
   const effectiveHabits = localHabits.length > 0 ? localHabits : (selectedDailyState?.habits ?? [])
-  const selectedMicroState = microHabitStates[selectedDate]
-  const effectiveMicroHabits = localMicroHabits.length > 0 ? localMicroHabits : (selectedMicroState?.habits ?? [])
 
   useEffect(() => {
     setLocalHabits([])
-    setLocalMicroHabits([])
-    setSupplementMode('none')
   }, [selectedDate])
 
   function moveMonth(offset: number) {
@@ -867,20 +714,6 @@ function CalendarView({
       : [...effectiveHabits, habit]
     setLocalHabits(newHabits)
     await onSaveDailyState(selectedDate, newHabits)
-  }
-
-  async function toggleMicroHabit(habit: MicroHabitName) {
-    const newHabits = effectiveMicroHabits.includes(habit)
-      ? effectiveMicroHabits.filter((h) => h !== habit)
-      : [...effectiveMicroHabits, habit]
-    setLocalMicroHabits(newHabits)
-    const newState: MicroHabitState = {
-      dateKey: selectedDate,
-      habits: newHabits,
-      score: newHabits.length,
-      updatedAt: new Date().toISOString(),
-    }
-    await onSaveMicroHabitState(newState)
   }
 
   return (
@@ -942,7 +775,6 @@ function CalendarView({
                         <span
                           key={habitName}
                           className="day-habit-tag"
-                          style={{ '--habit-color': habitMeta?.color ?? '#3d8b7a' } as CSSProperties}
                           title={habitName}
                         >
                           {habitMeta?.icon}
@@ -987,22 +819,6 @@ function CalendarView({
             <div className="supplement-buttons">
               <button
                 type="button"
-                className={`supplement-btn ${supplementMode === 'desire' ? 'active' : ''}`}
-                onClick={() => setSupplementMode(supplementMode === 'desire' ? 'none' : 'desire')}
-              >
-                <Icon name="flame" size={15} />
-                补记邪念
-              </button>
-              <button
-                type="button"
-                className={`supplement-btn ${supplementMode === 'microHabit' ? 'active' : ''}`}
-                onClick={() => setSupplementMode(supplementMode === 'microHabit' ? 'none' : 'microHabit')}
-              >
-                <Icon name="target" size={15} />
-                补记微习惯
-              </button>
-              <button
-                type="button"
                 className="supplement-btn"
                 onClick={() => onGoToRecord(selectedDate)}
               >
@@ -1012,84 +828,11 @@ function CalendarView({
             </div>
           </div>
 
-          {supplementMode === 'desire' && (
-            <div className="supplement-form supplement-desire-form">
-              <DesireForm
-                onSubmit={(record) => {
-                  onAddDesireRecord(record)
-                  setSupplementMode('none')
-                }}
-                onCancel={() => setSupplementMode('none')}
-                selectedDate={selectedDate}
-              />
-            </div>
-          )}
-
-          {supplementMode === 'microHabit' && (
-            <div className="supplement-microhabits">
-              <span className="supplement-section-title">微习惯（{effectiveMicroHabits.length}/10）</span>
-              <div className="microhabits-checkbox-row">
-                {microHabitOptions.map((habit) => (
-                  <label
-                    key={habit.name}
-                    className={`habit-checkbox micro-habit ${effectiveMicroHabits.includes(habit.name) ? 'checked' : ''}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={effectiveMicroHabits.includes(habit.name)}
-                      onChange={() => toggleMicroHabit(habit.name)}
-                    />
-                    <span className="habit-checkmark">
-                      {effectiveMicroHabits.includes(habit.name) && <Icon name="check" size={14} />}
-                    </span>
-                    <span className="habit-icon">{habit.icon}</span>
-                    <span className="habit-name">{habit.name}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
           <h3>{selectedDate} 的记录</h3>
           {dayEntries.length === 0 ? (
             <EmptyState text="这一天还没有记录。空白也是真实状态。" />
           ) : (
             dayEntries.map((entry) => <EntryCard entry={entry} key={entry.id} onSelect={onSelectEntry} />)
-          )}
-
-          {dayDesireRecords.length > 0 && (
-            <>
-              <h3>{selectedDate} 的邪念记录</h3>
-              <div className="day-desire-list">
-                {dayDesireRecords.map((record) => (
-                  <div key={record.id} className={`desire-card intensity-${record.intensity} ${record.successful ? 'success' : 'failure'}`}>
-                    <div className="desire-card-header">
-                      <div className="desire-card-time">
-                        <Icon name="flame" size={14} />
-                        <span>{new Date(record.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                      <div className={`desire-card-result ${record.successful ? 'success' : 'failure'}`}>
-                        {record.successful ? '成功' : '失守'}
-                      </div>
-                    </div>
-                    <div className="desire-card-body">
-                      <div className="desire-card-field">
-                        <span className="field-label">诱因</span>
-                        <span className="field-value">{record.trigger}</span>
-                      </div>
-                      <div className="desire-card-field">
-                        <span className="field-label">强度</span>
-                        <span className="field-value">{'●'.repeat(record.intensity)}{'○'.repeat(5 - record.intensity)}</span>
-                      </div>
-                      <div className="desire-card-field">
-                        <span className="field-label">应对</span>
-                        <span className="field-value">{record.copingStrategy}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
           )}
         </div>
       </div>

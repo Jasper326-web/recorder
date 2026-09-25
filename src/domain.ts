@@ -2,6 +2,103 @@ export type EntryType = 'text' | 'video' | 'audio'
 
 export type HabitName = 'iOS编程课' | '备考编制' | '冥想10min' | '轻运动20min' | '戒色播客一集' | '学习比特币'
 
+export type HabitMilestone = {
+  days: number
+  label: string
+  achieved: boolean
+}
+
+export const habitMilestoneTiers: Array<{ days: number; label: string }> = [
+  { days: 7, label: '起步' },
+  { days: 21, label: '坚持' },
+  { days: 60, label: '习惯' },
+  { days: 100, label: '精通' },
+  { days: 300, label: '自然' },
+  { days: 500, label: '本能' },
+]
+
+export type HabitStats = {
+  habit: HabitName
+  currentStreak: number
+  bestStreak: number
+  totalDays: number
+  recentDays: Array<{ dateKey: string; done: boolean }>
+  milestones: HabitMilestone[]
+}
+
+export function getHabitStats(
+  dailyStates: Record<string, DailyState>,
+  habitName: HabitName,
+  daysBack = 90,
+): HabitStats {
+  const today = new Date()
+  const startDate = new Date(today)
+  startDate.setDate(startDate.getDate() - daysBack + 1)
+
+  const recentDays: Array<{ dateKey: string; done: boolean }> = []
+  let currentStreak = 0
+  let bestStreak = 0
+  let runningStreak = 0
+  let totalDays = 0
+
+  const cursor = new Date(startDate)
+  while (cursor <= today) {
+    const key = toDateKey(cursor)
+    const state = dailyStates[key]
+    const done = state?.habits.includes(habitName) ?? false
+    recentDays.push({ dateKey: key, done })
+
+    if (done) {
+      totalDays++
+      runningStreak++
+      if (runningStreak > bestStreak) bestStreak = runningStreak
+    } else {
+      runningStreak = 0
+    }
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  // Current streak: count from today backwards
+  let backwardStreak = 0
+  const checkDate = new Date(today)
+  // If today's state doesn't have it, start from yesterday
+  while (true) {
+    const key = toDateKey(checkDate)
+    const state = dailyStates[key]
+    const done = state?.habits.includes(habitName) ?? false
+    if (done) {
+      backwardStreak++
+      checkDate.setDate(checkDate.getDate() - 1)
+    } else {
+      break
+    }
+  }
+  currentStreak = backwardStreak
+
+  const milestones = habitMilestoneTiers.map((tier) => ({
+    days: tier.days,
+    label: tier.label,
+    achieved: bestStreak >= tier.days,
+  }))
+
+  return {
+    habit: habitName,
+    currentStreak,
+    bestStreak,
+    totalDays,
+    recentDays,
+    milestones,
+  }
+}
+
+export function getHabitMilestones(bestStreak: number): HabitMilestone[] {
+  return habitMilestoneTiers.map((tier) => ({
+    days: tier.days,
+    label: tier.label,
+    achieved: bestStreak >= tier.days,
+  }))
+}
+
 export const habitOptions: Array<{
   name: HabitName
   icon: string

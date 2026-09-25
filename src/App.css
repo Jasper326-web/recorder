@@ -2903,3 +2903,168 @@ select {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* 习惯追踪 */
+.habit-stats-view {
+  display: grid;
+  gap: 20px;
+}
+
+.range-switch {
+  display: flex;
+  gap: 6px;
+}
+
+.range-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--soft-line);
+  background: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font-body);
+  color: var(--ink-light);
+  transition: all 0.2s ease;
+}
+
+.range-btn:hover {
+  color: var(--ink-deep);
+}
+
+.range-btn.active {
+  background: var(--celadon-bg);
+  border-color: var(--celadon-deep);
+  color: var(--celadon-deep);
+}
+
+.habit-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.habit-stats-card {
+  padding: 20px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--soft-line);
+  background: rgba(255, 255, 255, 0.7);
+  display: grid;
+  gap: 14px;
+  border-left: 3px solid var(--habit-color, #3d8b7a);
+}
+
+.habit-stats-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.habit-stats-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-family: var(--font-title);
+  color: var(--ink-deep);
+}
+
+.habit-stats-icon {
+  font-size: 22px;
+}
+
+.habit-streak-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.streak-badge {
+  text-align: center;
+  padding: 10px 6px;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--soft-line);
+}
+
+.streak-number {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--font-title);
+  color: var(--habit-color, #3d8b7a);
+  line-height: 1.2;
+}
+
+.streak-label {
+  font-size: 11px;
+  color: var(--ink-faint);
+  letter-spacing: 1px;
+}
+
+.habit-chart {
+  padding: 8px 0;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.habit-chart svg {
+  display: block;
+}
+
+.habit-milestones {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.milestone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--soft-line);
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 0.4;
+  transition: all 0.2s ease;
+}
+
+.milestone.achieved {
+  opacity: 1;
+  background: var(--celadon-bg);
+  border-color: var(--celadon-deep);
+}
+
+.milestone-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.milestone-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+}
+
+.milestone.achieved .milestone-dot {
+  display: none;
+}
+
+.milestone-days {
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-title);
+  color: var(--ink-deep);
+}
+
+.milestone-label {
+  font-size: 10px;
+  color: var(--ink-faint);
+  letter-spacing: 1px;
+}
+
+.milestone.achieved .milestone-label {
+  color: var(--celadon-deep);
+}
